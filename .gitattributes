@@ -1,0 +1,15 @@
+* text=auto eol=lf
+*.texture binary
+*.material binary
+*.unit binary
+*.bin binary
+
+# Left out of the release zip.
+.github export-ignore
+.gitattributes export-ignore
+.gitignore export-ignore
+README.md export-ignore
+CLAUDE.md export-ignore
+tests export-ignore
+docs export-ignore
+tools export-ignore

@@ -1,0 +1,123 @@
+{
+  "obsidian": 1,
+  "id": "alomare.integratedthirdperson",
+  "version": "0.1.0",
+  "name": {
+    "en": "Integrated Third Person"
+  },
+  "description": {
+    "en": "An over-the-shoulder camera for on foot and in vehicles, with shots, grenades and stratagems going where the crosshair points, a longer view distance, a sky over the level and enemy indicators around the crosshair. Built on Obsidian hooks, so other mods keep working beside it. Based on Third Person Camera by yukiorsrs."
+  },
+  "authors": [
+    "Alomare",
+    "yukiorsrs"
+  ],
+  "scope": "session",
+  "parts": [
+    {
+      "id": "view",
+      "scope": "client",
+      "name": { "en": "Camera and view" },
+      "description": { "en": "Camera, aim, view distance, sky, ship walls and enemy indicators. Keeps working in any lobby." }
+    },
+    {
+      "id": "weapon_range",
+      "scope": "session",
+      "option": "max_weapon_range",
+      "name": { "en": "Max weapon range" },
+      "description": { "en": "Every weapon reaches as far as the farthest one. Off in lobbies with players who don't run it." }
+    },
+    {
+      "id": "enemy_detection",
+      "scope": "session",
+      "option": "far_detection",
+      "name": { "en": "Far enemy detection" },
+      "description": { "en": "Enemies notice and chase the squad from much farther away. Off in lobbies with players who don't run it." }
+    }
+  ],
+  "entry": "main.lua",
+  "modules": [
+    "src/config.lua",
+    "src/camera.lua",
+    "src/aim.lua",
+    "src/crosshair.lua",
+    "src/view.lua",
+    "src/radar.lua",
+    "src/session.lua"
+  ],
+  "requires": [
+    "obsidian.api"
+  ],
+  "loader_api": 1,
+  "option_groups": [
+    { "id": "camera", "label": { "en": "Camera on foot" } },
+    { "id": "vehicles", "label": { "en": "Camera in vehicles" } },
+    { "id": "indicators", "label": { "en": "Enemy indicators" } },
+    { "id": "world", "label": { "en": "View distance, sky and ship" } },
+    { "id": "lobby", "label": { "en": "Lobby-wide changes" } }
+  ],
+  "options": [
+    { "id": "foot_distance", "type": "number", "default": 3, "min": 1, "max": 10, "step": 0.5,
+      "group": "camera", "part": "view", "scope": "client",
+      "label": { "en": "On-foot camera distance (m)" },
+      "description": { "en": "Meters between the camera and the Helldiver on foot." } },
+    { "id": "foot_fov", "type": "number", "default": 70, "min": 40, "max": 110, "step": 1,
+      "group": "camera", "part": "view", "scope": "client",
+      "label": { "en": "On-foot field of view (degrees)" },
+      "description": { "en": "Vertical field of view on foot. Aiming narrows it." } },
+    { "id": "shoulder", "type": "choice", "default": "right",
+      "choices": [ { "id": "right", "label": { "en": "Right" } }, { "id": "left", "label": { "en": "Left" } } ],
+      "group": "camera", "part": "view", "scope": "client",
+      "label": { "en": "Shoulder" },
+      "description": { "en": "The side of the Helldiver the camera sits on. The swap key changes it in a mission." } },
+    { "id": "look_speed", "type": "number", "default": 1, "min": 0.1, "max": 3, "step": 0.05,
+      "group": "camera", "part": "view", "scope": "client",
+      "label": { "en": "Look sensitivity" },
+      "description": { "en": "How fast the camera turns with the mouse or the right stick." } },
+    { "id": "invert_y", "type": "toggle", "default": false,
+      "group": "camera", "part": "view", "scope": "client",
+      "label": { "en": "Invert vertical look" },
+      "description": { "en": "Moving the mouse up looks down." } },
+    { "id": "vehicle_distance", "type": "number", "default": 7, "min": 3, "max": 20, "step": 0.5,
+      "group": "vehicles", "part": "view", "scope": "client",
+      "label": { "en": "Vehicle camera distance (m)" },
+      "description": { "en": "Meters between the camera and the vehicle: mech, APC, bike and turrets." } },
+    { "id": "vehicle_fov", "type": "number", "default": 75, "min": 40, "max": 120, "step": 1,
+      "group": "vehicles", "part": "view", "scope": "client",
+      "label": { "en": "Vehicle field of view (degrees)" },
+      "description": { "en": "Vertical field of view in a vehicle." } },
+    { "id": "radar", "type": "toggle", "default": true,
+      "group": "indicators", "part": "view", "scope": "client",
+      "label": { "en": "Enemy indicators" },
+      "description": { "en": "Marks around the crosshair point toward nearby enemies, larger and stronger as they come closer." } },
+    { "id": "radar_range", "type": "number", "default": 35, "min": 10, "max": 80, "step": 5,
+      "group": "indicators", "part": "view", "scope": "client", "visible_when": { "radar": true },
+      "label": { "en": "Indicator range (m)" },
+      "description": { "en": "Enemies closer than this get a mark." } },
+    { "id": "far_view", "type": "toggle", "default": true,
+      "group": "world", "part": "view", "scope": "client",
+      "label": { "en": "Long view distance" },
+      "description": { "en": "Pushes the fog, the far edge of the view and the detail of distant models out, so distant enemies and landmarks show." } },
+    { "id": "fix_sky", "type": "toggle", "default": true,
+      "group": "world", "part": "view", "scope": "client",
+      "label": { "en": "Sky" },
+      "description": { "en": "Draws a sky over the level in the color of the planet fog, instead of the smears the game leaves past the level. Needs a deploy." } },
+    { "id": "ship_walls", "type": "toggle", "default": true,
+      "group": "world", "part": "view", "scope": "client",
+      "label": { "en": "Ship walls" },
+      "description": { "en": "Closes the open back of the Super Destroyer bridge with wall panels, which the top-down camera never showed." } },
+    { "id": "max_weapon_range", "type": "toggle", "default": true,
+      "group": "lobby", "part": "weapon_range",
+      "label": { "en": "Max weapon range" },
+      "description": { "en": "Every weapon reaches as far as the farthest one, so targets far off in the third-person view can be hit. Changes the shared game: off in lobbies with players who don't run it." } },
+    { "id": "far_detection", "type": "toggle", "default": true,
+      "group": "lobby", "part": "enemy_detection",
+      "label": { "en": "Far enemy detection" },
+      "description": { "en": "Enemies notice and chase the squad from much farther away. Alarm range stays as in the game. Changes the shared game: off in lobbies with players who don't run it." } }
+  ],
+  "keybinds": [
+    { "id": "toggle_view", "default": "f8", "label": { "en": "Switch between third person and the top-down camera" } },
+    { "id": "swap_shoulder", "default": "v", "label": { "en": "Swap the camera shoulder" } }
+  ],
+  "resources": []
+}
