@@ -5,7 +5,7 @@
 --   view             client: camera, aim, crosshair, view distance, sky, ship walls, enemy indicators
 --   weapon_range     session: every weapon reaches as far as the farthest one
 --   enemy_detection  session: enemies notice the squad from farther away
--- Every hook, frame function and key is registered with the options of its part ({ part = "..." }),
+-- Every hook, frame function and key is registered with the options of the part it belongs to ({ part = "..." }),
 -- so a lobby that isn't cleared switches only the session parts off. A loader without parts ignores
 -- the extra argument and gates everything, the safe fallback.
 
@@ -33,6 +33,11 @@ local env = {
 	part = function(id) return { part = id } end,
 	log = function(...) obsidian.log(...) end,
 	parts = obsidian.capabilities and obsidian.capabilities.parts or false,
+	-- Filled by src/camera.lua: fn(view, camera_manager, dt) after each frame's pose, fn(camera_manager)
+	-- when the view goes back to the top-down camera, and the pose itself while third person is on.
+	on_pose = {},
+	on_release = {},
+	view = nil,
 }
 
 config.start(env)
@@ -58,7 +63,7 @@ function export.crosshair()
 end
 
 -- Another mod draws the crosshair from now on (Custom Crosshair does this). Integrated Third Person
--- stops drawing its own. Answers true.
+-- stops drawing the built-in one. Answers true.
 function export.claim_crosshair(mod_id)
 	state.claimed_by = mod_id or obsidian.caller and obsidian.caller() or "unknown"
 	return true

@@ -38,6 +38,9 @@
   "entry": "main.lua",
   "modules": [
     "src/config.lua",
+    "src/scoped.lua",
+    "src/rig.lua",
+    "src/frustum.lua",
     "src/camera.lua",
     "src/aim.lua",
     "src/crosshair.lua",
