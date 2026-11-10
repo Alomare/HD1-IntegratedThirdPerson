@@ -1,0 +1,51 @@
+# A release: pushing a tag like v1.2.0 packs the mod into a zip and publishes it, and Obsidian offers
+# it as an update to anyone on an older version.
+#
+# The rules for a release:
+# - The tag matches "version" in obsidian.json.
+# - docs/releases/<version>.md holds the changelog: a list with one change per line, such as
+#   "- Added a sky over the level.", and nothing else. It becomes the release text on GitHub.
+# - The changelog follows the rules for public text: plain wording, no em or en dashes, and none of
+#   the words that tools/release_check.py looks for.
+#
+# A tag with a suffix (v1.2.0-beta.1) makes a prerelease, which Obsidian doesn't offer, so use one to
+# try a build by hand. What goes in the zip is set by export-ignore in .gitattributes.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: The tag matches obsidian.json, and the changelog follows the rules
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          have=$(jq -r .version obsidian.json)
+          [ "$have" = "$v" ] || { echo "obsidian.json says $have, the tag says $GITHUB_REF_NAME"; exit 1; }
+          [ -s "docs/releases/$v.md" ] || { echo "::error::docs/releases/$v.md is missing"; exit 1; }
+          python3 tools/release_check.py "docs/releases/$v.md"
+
+      - name: Tests
+        run: |
+          sudo apt-get install -y -qq luajit >/dev/null
+          luajit tests/run.lua
+
+      - name: Pack and publish
+        run: |
+          id=$(jq -r .id obsidian.json)
+          version="${GITHUB_REF_NAME#v}"
+          git archive --format=zip --prefix="$id/" -o "$id-$version.zip" "$GITHUB_SHA"
+          pre=""
+          [[ "$GITHUB_REF_NAME" == *-* ]] && pre="--prerelease"
+          gh release create "$GITHUB_REF_NAME" "$id-$version.zip" --title "$(jq -r .name.en obsidian.json) $version" \
+            --notes-file "docs/releases/$version.md" $pre
