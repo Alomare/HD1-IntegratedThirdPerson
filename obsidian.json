@@ -122,5 +122,25 @@
     { "id": "toggle_view", "default": "f8", "label": { "en": "Switch between third person and the top-down camera" } },
     { "id": "swap_shoulder", "default": "v", "label": { "en": "Swap the camera shoulder" } }
   ],
-  "resources": []
+  "resources": [
+    { "type": "render_config", "name": "#1a9c33dcd0301dfd", "bundle": "1a9c33dcd0301dfd", "data": "res/render_config.bin", "part": "view", "when": { "fix_sky": true } },
+    { "type": "texture", "name": "itp/sky/desert_map", "bundle": "9cf71054ea26dddf", "data": "res/sky_desert.texture", "part": "view", "when": { "fix_sky": true } },
+    { "type": "material", "name": "itp/sky/desert", "bundle": "9cf71054ea26dddf", "data": "res/sky_desert.material", "part": "view", "when": { "fix_sky": true } },
+    { "type": "unit", "name": "itp/sky/desert", "bundle": "9cf71054ea26dddf", "data": "res/sky_desert.unit", "part": "view", "when": { "fix_sky": true } },
+    { "type": "texture", "name": "itp/sky/forest_map", "bundle": "9cf71054ea26dddf", "data": "res/sky_forest.texture", "part": "view", "when": { "fix_sky": true } },
+    { "type": "material", "name": "itp/sky/forest", "bundle": "9cf71054ea26dddf", "data": "res/sky_forest.material", "part": "view", "when": { "fix_sky": true } },
+    { "type": "unit", "name": "itp/sky/forest", "bundle": "9cf71054ea26dddf", "data": "res/sky_forest.unit", "part": "view", "when": { "fix_sky": true } },
+    { "type": "texture", "name": "itp/sky/snow_map", "bundle": "9cf71054ea26dddf", "data": "res/sky_snow.texture", "part": "view", "when": { "fix_sky": true } },
+    { "type": "material", "name": "itp/sky/snow", "bundle": "9cf71054ea26dddf", "data": "res/sky_snow.material", "part": "view", "when": { "fix_sky": true } },
+    { "type": "unit", "name": "itp/sky/snow", "bundle": "9cf71054ea26dddf", "data": "res/sky_snow.unit", "part": "view", "when": { "fix_sky": true } },
+    { "type": "texture", "name": "itp/sky/lava_map", "bundle": "9cf71054ea26dddf", "data": "res/sky_lava.texture", "part": "view", "when": { "fix_sky": true } },
+    { "type": "material", "name": "itp/sky/lava", "bundle": "9cf71054ea26dddf", "data": "res/sky_lava.material", "part": "view", "when": { "fix_sky": true } },
+    { "type": "unit", "name": "itp/sky/lava", "bundle": "9cf71054ea26dddf", "data": "res/sky_lava.unit", "part": "view", "when": { "fix_sky": true } },
+    { "type": "texture", "name": "itp/sky/city_map", "bundle": "9cf71054ea26dddf", "data": "res/sky_city.texture", "part": "view", "when": { "fix_sky": true } },
+    { "type": "material", "name": "itp/sky/city", "bundle": "9cf71054ea26dddf", "data": "res/sky_city.material", "part": "view", "when": { "fix_sky": true } },
+    { "type": "unit", "name": "itp/sky/city", "bundle": "9cf71054ea26dddf", "data": "res/sky_city.unit", "part": "view", "when": { "fix_sky": true } },
+    { "type": "texture", "name": "itp/sky/night_map", "bundle": "9cf71054ea26dddf", "data": "res/sky_night.texture", "part": "view", "when": { "fix_sky": true } },
+    { "type": "material", "name": "itp/sky/night", "bundle": "9cf71054ea26dddf", "data": "res/sky_night.material", "part": "view", "when": { "fix_sky": true } },
+    { "type": "unit", "name": "itp/sky/night", "bundle": "9cf71054ea26dddf", "data": "res/sky_night.unit", "part": "view", "when": { "fix_sky": true } }
+  ]
 }
