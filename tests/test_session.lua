@@ -40,7 +40,7 @@ local function session()
 end
 
 return {
-	{ "every hook carries the options of its part", function()
+	{ "every hook carries the options of the part it belongs to", function()
 		local s = session()
 		s.start(env_with({ max_weapon_range = true, far_detection = true }))
 		local by = hooks_by_method()

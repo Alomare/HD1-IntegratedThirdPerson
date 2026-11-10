@@ -1,6 +1,6 @@
 -- The two session parts: max weapon range and far enemy detection.
 --
--- Both change the shared game, so each hook is registered with the options of its part. In a lobby
+-- Both change the shared game, so each hook is registered with the options of the part. In a lobby
 -- that isn't cleared the loader calls only the original, which is why every change here is made
 -- around one call of the game and undone right after it: the game keeps no changed value, and the
 -- part goes off at once when a player without the mod joins. Nothing needs undoing on the way out.
@@ -145,7 +145,7 @@ end
 
 local function start_enemy_detection(env)
 	local opts = env.part("enemy_detection")
-	-- wander runs once per patrol per frame, so its dt can't make a clock; os.clock can.
+	-- wander runs once per patrol per frame, so the dt it gets can't make a clock; os.clock can.
 	local clock = os and os.clock or function() return 0 end
 	obsidian.hook("EnemyComponent", "update_target", function(original, self, unit, context, ...)
 		return M.with_shadow(context, original, self, unit, context, ...)
