@@ -5,8 +5,8 @@ local M = {}
 
 M.GAP, M.LENGTH, M.THICK = 5, 8, 2
 M.AIM_GAP = 3
-M.COLOR = { 1, 1, 1, 0.9 }
-M.SHADOW = { 0, 0, 0, 0.55 }
+M.COLOR = { 255, 255, 255, 230 }   -- obsidian.ui.canvas takes 0 to 255
+M.SHADOW = { 0, 0, 0, 140 }
 
 -- Whether the crosshair shows now. env.api may be nil.
 function M.visible(env)
