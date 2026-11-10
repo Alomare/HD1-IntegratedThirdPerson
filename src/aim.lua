@@ -8,6 +8,7 @@
 --                                          player's weapons, and WeaponUtility.get_random_spread
 --                                          drops the dip that makes a level shot meet the ground
 --   LauncherComponent.do_fire             the state's z_direction is the crosshair way's
+--   LaserSightComponent.update_slaves     the laser line goes to the crosshair point
 --   Character*Throw.update                 CameraManager.screen_to_world answers the crosshair point,
 --                                          which sets how far a grenade or a stratagem ball flies
 local rig = obsidian.module("src/rig")
@@ -50,6 +51,8 @@ end
 -- at the crosshair point. A pad's right stick turns the view, so it no longer turns the Helldiver.
 function M.steer(data, input, view, point)
 	if type(data) ~= "table" or type(data.aim) ~= "table" then return false end
+	-- The map, a menu or the game's own input lock: the game's aim stands.
+	if not input.look then return false end
 	local a = data.aim
 	-- With a mouse the game asks for aim only while aiming, firing or throwing; a pad's aim is the stick.
 	local asked = input.aiming or input.fire or input.throw
@@ -120,6 +123,29 @@ function M.collect(slaves, view, point, quaternion_forward)
 	return list
 end
 
+-- Laser sights draw from the weapon's own node, and lower the line by 1.5 / range after asking for
+-- the forward: the answer is raised by as much (lift), so the line lands on the crosshair point.
+function M.collect_lasers(slaves, view, point, quaternion_forward)
+	local list = {}
+	local U = g("Unit")
+	local mine = own_units(view)
+	for unit, ctx in pairs(slaves) do
+		local st = type(ctx) == "table" and ctx.state or nil
+		local wielder = wielder_of(unit)
+		if st and st.laser_enabled and wielder and (mine[wielder] or mine[unit]) and U.alive(unit) then
+			local node = type(st.attach_node) == "number" and st.attach_node or 0
+			local f = quaternion_forward(U.world_rotation(unit, node))
+			local p = U.world_position(unit, node)
+			local dir = rig.shot_dir({ x = p.x, y = p.y, z = p.z }, point, { x = f.x, y = f.y, z = 0 })
+			if dir then
+				local lift = type(st.range) == "number" and st.range > 0 and 1.5 / st.range or 0
+				list[#list + 1] = { f = { x = f.x, y = f.y, z = f.z }, dir = dir, lift = lift }
+			end
+		end
+	end
+	return list
+end
+
 local function same(a, b)
 	return math.abs(a.x - b.x) < 1e-5 and math.abs(a.y - b.y) < 1e-5 and math.abs(a.z - b.z) < 1e-5
 end
@@ -132,7 +158,7 @@ function M.redirect(list, fn, ...)
 	local function aimed_forward(q, ...)
 		local f = forward(q, ...)
 		for _, o in ipairs(list) do
-			if same(f, o.f) then return V3(o.dir.x, o.dir.y, o.dir.z) end
+			if same(f, o.f) then return V3(o.dir.x, o.dir.y, o.dir.z + (o.lift or 0)) end
 		end
 		return f
 	end
@@ -184,6 +210,13 @@ function M.start(env)
 			return M.redirect(list, original, self, slaves, dt, ...)
 		end, env.VIEW)
 	end
+
+	obsidian.hook("LaserSightComponent", "update_slaves", function(original, self, slaves, dt, ...)
+		if not live() or type(slaves) ~= "table" then return original(self, slaves, dt, ...) end
+		local ok, list = pcall(M.collect_lasers, slaves, env.view, state.aim_point, g("Quaternion").forward)
+		if not ok or #list == 0 then return original(self, slaves, dt, ...) end
+		return M.redirect(list, original, self, slaves, dt, ...)
+	end, env.VIEW)
 
 	-- Launchers fire once per call, and set the height of the shot from z_direction.
 	obsidian.hook("LauncherComponent", "do_fire", function(original, self, unit, st, ...)

@@ -52,16 +52,16 @@ return {
 		local aim = obsidian.module("src/aim")
 		local view = { pivot = { x = 0, y = 0, z = 1.5 }, target_position = { x = 0, y = 0, z = 0 } }
 		local data = { aim = { x = 0, y = 0, z = 0 } }
-		eq(aim.steer(data, { kbm = true, aiming = true }, view, { x = 10, y = 10, z = 5 }), true)
+		eq(aim.steer(data, { look = true, kbm = true, aiming = true }, view, { x = 10, y = 10, z = 5 }), true)
 		near(data.aim.x, math.sqrt(0.5)) near(data.aim.y, math.sqrt(0.5)) eq(data.aim.z, 0, "flat")
 		local idle = { aim = { x = 0, y = 0, z = 0 } }
-		eq(aim.steer(idle, { kbm = true }, view, { x = 10, y = 0, z = 0 }), false, "not aiming: the game's own")
+		eq(aim.steer(idle, { look = true, kbm = true }, view, { x = 10, y = 0, z = 0 }), false, "not aiming: the game's own")
 		eq(idle.aim.x, 0)
 		local pad = { aim = { x = 1, y = 0, z = 0 } }
-		aim.steer(pad, { kbm = false }, view, { x = 0, y = 10, z = 0 })
+		aim.steer(pad, { look = true, kbm = false }, view, { x = 0, y = 10, z = 0 })
 		eq(pad.aim.x, 0, "stick looks, not turns") eq(pad.aim.y, 0)
 		local firing = { aim = { x = 0, y = 0, z = 0 } }
-		aim.steer(firing, { kbm = false, fire = true }, view, { x = 0, y = 10, z = 0 })
+		aim.steer(firing, { look = true, kbm = false, fire = true }, view, { x = 0, y = 10, z = 0 })
 		near(firing.aim.y, 1, "pad fires at the crosshair")
 	end },
 
@@ -115,6 +115,26 @@ return {
 		eq(theirs.x, 1, "another player's gun untouched")
 		eq(spread_calls[1], 0, "no dip for the own shot") eq(spread_calls[2], 1.4, "dip kept for others")
 		eq(Quaternion.forward(Unit.world_rotation("me", 3)).z, 0, "given back after the call")
+		WeaponUtility = nil
+		E.remove()
+	end },
+
+	{ "a laser sight on this player's weapon lands on the crosshair point", function()
+		local e = E.install()
+		local aim = obsidian.module("src/aim")
+		e.units.me = { position = { x = 0, y = 0, z = 0 }, forward = { x = 0, y = 1, z = 0 } }
+		e.units.gun = { position = { x = 0, y = 0, z = 1.4 }, forward = { x = 0, y = 1, z = 0 }, equipment = { wielder = "me" } }
+		local slaves = { gun = { state = { laser_enabled = true, attach_node = 2, range = 30 } } }
+		local list = aim.collect_lasers(slaves, { avatar = "me", target = "me" }, { x = 0, y = 30, z = 1.4 }, Quaternion.forward)
+		eq(#list, 1)
+		WeaponUtility = { get_random_spread = function() end }
+		local got = nil
+		aim.redirect(list, function()
+			local f = Quaternion.forward(Unit.world_rotation("gun", 2))
+			f.z = f.z - 1.5 / 30 -- what the game does next
+			got = f
+		end)
+		near(got.z, 0, "level after the game's own lowering", 1e-9)
 		WeaponUtility = nil
 		E.remove()
 	end },
