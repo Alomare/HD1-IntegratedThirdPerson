@@ -104,19 +104,37 @@ return {
 		E.remove()
 	end },
 
-	{ "movement follows the view only while the game reads input", function()
+	{ "W moves where the camera looks, and other units keep the game's turn", function()
 		local e, env = started()
 		local masters = E.player(e, "me")
 		frame(e, env, masters)
-		local before = CameraManager.follow_spin
 		e.mouse = { x = 100, y = 0 }
 		frame(e, env, masters)
 		e.mouse = { x = 0, y = 0 }
-		local seen = frame(e, env, masters)
 		local camera = obsidian.module("src/camera")
-		near(seen, math.rad(camera.view.yaw), "W moves along the view")
-		eq(CameraManager.follow_spin, before, "given back after")
+		local spin = CameraManager.follow_spin
+		local queue = E.hook("InputComponent", "queue_command_master")
+		local got, faced = {}, nil
+		-- What the game's update_masters does: W turned by the top-down spin, for each master.
+		local function game()
+			for _, unit in ipairs({ "me", "bot" }) do
+				local w = { x = -math.sin(spin), y = math.cos(spin), z = 0 }
+				queue(function(_, u, _, _, d) got[u] = d end, {}, unit, "mover", "set_movement", w)
+			end
+			local input = { movement = { x = -math.sin(spin), y = math.cos(spin), z = 0 } }
+			queue(function(_, _, _, _, d) faced = d.movement end, {}, "me", "character", "input", input)
+		end
+		E.hook("InputComponent", "update_masters")(game, {}, masters, 0.016)
+		local f = rig().flat_forward(camera.view.yaw)
+		near(got.me.x, f.x, "x", 1e-9) near(got.me.y, f.y, "y", 1e-9)
+		near(faced.x, f.x, "character input", 1e-9)
+		near(got.bot.x, -math.sin(spin), "a bot keeps the game's turn", 1e-9)
+		eq(CameraManager.follow_spin, spin, "follow_spin never changes")
 		near(camera.view.yaw, -100 * rig().MOUSE_RATE, "mouse turned the view", 1e-9)
+		-- Outside update_masters nothing is turned.
+		local later = { x = 0, y = 1, z = 0 }
+		queue(function() end, {}, "me", "mover", "set_movement", later)
+		eq(later.x, 0)
 		E.remove()
 	end },
 
@@ -180,6 +198,17 @@ return {
 		E.remove()
 	end },
 
+	{ "Obsidian API bots on this machine don't count as a second player", function()
+		local bot = { unit = function() return "bot" end }
+		local e, env = started({ bots = { all = function() return { bot } end } })
+		local masters = E.player(e, "me")
+		e.units.bot = { position = { x = 0, y = 0, z = 0 }, forward = { x = 0, y = 1, z = 0 }, character = {} }
+		masters.bot = { state = { pad_number = 3, input_data = { is_active = true } } }
+		frame(e, env, masters)
+		eq(env.state.active, true)
+		E.remove()
+	end },
+
 	{ "the game's rules see the top-down screen, the HUD sees the view", function()
 		local e, env = started()
 		local masters = E.player(e, "me")
@@ -239,7 +268,7 @@ return {
 		near(e.calls.set_vertical_fov[2], math.rad(80), "vehicle fov")
 		-- Driving reads the movement back through the same yaw.
 		local seen = nil
-		E.hook("VehicleComponent", "update_masters")(function() seen = CameraManager.follow_spin end, {})
+		E.hook("VehicleComponent", "update_masters")(function() seen = CameraManager.follow_spin end, {}, { mech = {} })
 		near(seen, math.rad(obsidian.module("src/camera").view.yaw), "vehicle steering follows the view")
 		E.remove()
 	end },

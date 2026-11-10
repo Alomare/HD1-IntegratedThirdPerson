@@ -74,6 +74,15 @@ end
 -- up axis), and W moves along the yaw this gives.
 function M.spin_of(yaw) return math.rad(yaw) end
 
+-- Turns a { x, y, z } table in place about the up axis by `angle` radians, as Quaternion(up, angle)
+-- turns a vector. Leaves anything else alone.
+function M.turn_flat(v, angle)
+	if type(v) ~= "table" or type(v.x) ~= "number" or type(v.y) ~= "number" or angle == 0 then return v end
+	local c, s = math.cos(angle), math.sin(angle)
+	v.x, v.y = v.x * c - v.y * s, v.x * s + v.y * c
+	return v
+end
+
 -- A share of the way from current to target this frame, the same at any frame rate: rate is how
 -- many times e it closes per second.
 function M.ease_share(rate, dt) return 1 - math.exp(-rate * math.max(0, dt)) end

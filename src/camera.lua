@@ -6,7 +6,9 @@
 -- view, World.update_unit, the grass observer and the sound listener).
 --
 -- Movement follows the view: the game turns the movement keys and the left stick by
--- CameraManager.follow_spin, which holds the view's yaw only while InputComponent.update_masters runs.
+-- CameraManager.follow_spin, the top-down camera's. CameraManager.follow_spin itself stays as the game
+-- has it, because Obsidian API's bots (and the game's leash) turn their own movement by it in the same
+-- update; only the local player's movement commands are turned on by the difference to the view's yaw.
 local rig = obsidian.module("src/rig")
 local scoped = obsidian.module("src/scoped")
 local frustum = obsidian.module("src/frustum")
@@ -33,15 +35,29 @@ function M.local_master(masters, api)
 	local kbm = rawget(_G, "KEYBOARD_MOUSE_PAD_NUMBER")
 	local settings = g("GameSettings")
 	local main_pad = settings and settings.get_main_pad_number and settings.get_main_pad_number()
-	local found, ctx, others = nil, nil, 0
+	local found, ctx, others = nil, nil, {}
 	for unit, c in pairs(masters) do
 		local st = type(c) == "table" and c.state
 		if st and st.pad_number ~= nil then
 			local mine = unit == main or (not main and (st.pad_number == main_pad or st.pad_number == kbm))
-			if mine and not found then found, ctx = unit, c else others = others + 1 end
+			if mine and not found then found, ctx = unit, c else others[#others + 1] = unit end
 		end
 	end
-	return found, ctx, others > 0
+	-- Obsidian API's bots drive input masters of this machine too, with pads of their own: they don't
+	-- share the screen the way a second player does.
+	if #others > 0 then
+		local bots = api and api.bots and api.bots.all
+		local ok, list = pcall(function() return bots and bots() or {} end)
+		local bot = {}
+		for _, b in ipairs(ok and list or {}) do
+			local got, u = pcall(b.unit, b)
+			if got and u then bot[u] = true end
+		end
+		local people = 0
+		for _, u in ipairs(others) do if not bot[u] then people = people + 1 end end
+		return found, ctx, people > 0
+	end
+	return found, ctx, false
 end
 
 -- Reads what the local player asks of the view this frame, from the input the game is about to use.
@@ -300,16 +316,14 @@ function M.start(env)
 
 	frustum.install(env)
 
-	-- The view's yaw holds CameraManager.follow_spin while the game reads movement, so W moves where the
-	-- camera looks; the cursor stays hidden; the input this frame is kept for the camera.
+	-- The input this frame is kept for the camera, and the cursor stays hidden.
 	local inside = false
 	local function enter() inside = true end
 	local function leave() inside = false end
 	obsidian.hook("InputComponent", "update_masters", function(original, self, masters, dt, ...)
 		local unit, ctx, shared = M.local_master(masters, env.api)
 		if unit then M.read_input(self, unit, ctx, shared, dt) end
-		local cm = g("CameraManager")
-		if not (state.active and type(cm) == "table" and M.view.yaw) then return original(self, masters, dt, ...) end
+		if not (state.active and M.view.yaw) then return original(self, masters, dt, ...) end
 		if M.input and M.input.look then
 			local st = ctx and ctx.state
 			-- The software cursor the game eases back to the Helldiver after aiming stays away.
@@ -317,15 +331,36 @@ function M.start(env)
 			local cursors = g("CursorManager")
 			if cursors and cursors.is_shown and cursors:is_shown() then cursors:set_show_cursor(false) end
 		end
-		return scoped.swap(cm, "follow_spin", rig.spin_of(M.view.yaw), scoped.around, enter, leave, original, self, masters, dt, ...)
+		return scoped.around(enter, leave, original, self, masters, dt, ...)
 	end, env.VIEW)
 
-	-- A tank's tracks and a vehicle's turn read the driver's movement back through follow_spin: the same
-	-- yaw there, so driving follows the view too.
-	obsidian.hook("VehicleComponent", "update_masters", function(original, self, ...)
+	-- W moves where the camera looks: the local player's movement, which the game turned by the top-down
+	-- spin, turns on by the difference to the view's yaw (the mover's set_movement, and the movement
+	-- in the character's input, which the Helldiver faces while not aiming).
+	obsidian.hook("InputComponent", "queue_command_master", function(original, self, unit, component, command, data, ...)
 		local cm = g("CameraManager")
-		if not (state.active and state.vehicle and type(cm) == "table" and M.view.yaw) then return original(self, ...) end
-		return scoped.swap(cm, "follow_spin", rig.spin_of(M.view.yaw), original, self, ...)
+		if inside and state.active and M.view.yaw and M.input and unit == M.input.unit and type(cm) == "table"
+			and type(cm.follow_spin) == "number" then
+			local turn = rig.spin_of(M.view.yaw) - cm.follow_spin
+			if component == "mover" and command == "set_movement" then
+				rig.turn_flat(data, turn)
+			elseif component == "character" and command == "input" and type(data) == "table" then
+				rig.turn_flat(data.movement, turn)
+			end
+		end
+		return original(self, unit, component, command, data, ...)
+	end, env.VIEW)
+
+	-- A tank's tracks and a vehicle's turn read the driver's movement back through follow_spin: with this
+	-- player's vehicle the only one this machine drives, the view's yaw stands there for that update.
+	obsidian.hook("VehicleComponent", "update_masters", function(original, self, masters, ...)
+		local cm = g("CameraManager")
+		local view = env.view
+		if not (state.active and state.vehicle and view and type(cm) == "table" and M.view.yaw and type(masters) == "table"
+			and masters[view.target] and next(masters, next(masters)) == nil) then
+			return original(self, masters, ...)
+		end
+		return scoped.swap(cm, "follow_spin", rig.spin_of(M.view.yaw), original, self, masters, ...)
 	end, env.VIEW)
 
 	-- While the game reads input under the shoulder camera, the aiming cursor stays hidden and in place.
