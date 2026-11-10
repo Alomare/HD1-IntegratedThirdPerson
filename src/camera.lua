@@ -320,6 +320,14 @@ function M.start(env)
 		return scoped.swap(cm, "follow_spin", rig.spin_of(M.view.yaw), scoped.around, enter, leave, original, self, masters, dt, ...)
 	end, env.VIEW)
 
+	-- A tank's tracks and a vehicle's turn read the driver's movement back through follow_spin: the same
+	-- yaw there, so driving follows the view too.
+	obsidian.hook("VehicleComponent", "update_masters", function(original, self, ...)
+		local cm = g("CameraManager")
+		if not (state.active and state.vehicle and type(cm) == "table" and M.view.yaw) then return original(self, ...) end
+		return scoped.swap(cm, "follow_spin", rig.spin_of(M.view.yaw), original, self, ...)
+	end, env.VIEW)
+
 	-- While the game reads input under the shoulder camera, the aiming cursor stays hidden and in place.
 	obsidian.hook("CursorManager", "set_show_cursor", function(original, self, on, ...)
 		if inside and on and state.active and M.input and M.input.look then return original(self, false, ...) end

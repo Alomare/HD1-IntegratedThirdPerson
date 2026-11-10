@@ -237,6 +237,10 @@ return {
 		local want = rig().place({ x = 0, y = 0, z = rig().height("exosuit") }, 0, rig().START_PITCH, 8, 0)
 		near(pos.x, 0, "centred", 1e-9) near(pos.y, want.y, "vehicle distance", 1e-6) near(pos.z, want.z, "mech height", 1e-6)
 		near(e.calls.set_vertical_fov[2], math.rad(80), "vehicle fov")
+		-- Driving reads the movement back through the same yaw.
+		local seen = nil
+		E.hook("VehicleComponent", "update_masters")(function() seen = CameraManager.follow_spin end, {})
+		near(seen, math.rad(obsidian.module("src/camera").view.yaw), "vehicle steering follows the view")
 		E.remove()
 	end },
 }
