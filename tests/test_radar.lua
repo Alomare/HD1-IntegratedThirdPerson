@@ -392,21 +392,26 @@ test("radar frames make no tables per enemy", function()
 	local kit = w.kit
 	kit.poly = function() end
 	local frame = FRAMES[1].fn
-	for _ = 1, 30 do frame() end
 	-- The stand-in camera answers new tables; keep the same ones from here.
 	local f, up = { x = 0, y = 0.42, z = -0.91 }, { x = 0, y = 0.91, z = 0.42 }
 	Quaternion.forward, Quaternion.up = function() return f end, function() return up end
 	local proxy = { get_world = function() return "level" end }
 	CameraManager.viewport.get_world_proxy = function() return proxy end
+	-- No compiled code from earlier tests or the warm-up: leaving a trace can build what it had sunk.
 	jit.off()
+	jit.flush()
+	for _ = 1, 30 do frame() end
 	collectgarbage("collect")
 	collectgarbage("stop")
-	local before = collectgarbage("count")
+	-- The runtime sometimes grows once, by under 1 KB, early after a full collect; a table per enemy
+	-- or per frame keeps growing, so the frames after the first 300 are the ones counted.
 	for _ = 1, 300 do frame() end
+	local before = collectgarbage("count")
+	for _ = 1, 600 do frame() end
 	local grew = collectgarbage("count") - before
 	collectgarbage("restart")
 	jit.on()
-	eq(grew < 1, true, "KB over 300 frames: " .. grew)
+	eq(grew < 1, true, "KB over 600 frames: " .. grew)
 	cleanup()
 end)
 
