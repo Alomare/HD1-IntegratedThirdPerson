@@ -53,7 +53,7 @@ for _, name in ipairs({ "src/camera", "src/aim", "src/crosshair", "src/view", "s
 end
 
 -- What other mods get from obsidian.import("alomare.integratedthirdperson").
-local export = { version = "0.2.0" }
+local export = { version = "0.2.1" }
 
 -- Where shots go on screen while third person steers the view: { x, y, aiming }, in pixels from the
 -- bottom left (the coordinates of obsidian.ui.canvas). nil while the top-down camera is on.
