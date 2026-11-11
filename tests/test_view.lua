@@ -46,13 +46,15 @@ return {
 		eq(v.sky_intensity("desert", nil), 2, "the dome's own")
 	end },
 
-	{ "the wall goes across from the window, and fills the open side", function()
+	{ "the wall goes on the open side, and fills it", function()
 		local v = view()
 		local bounds = { min = { x = 0, y = 0, z = 0 }, max = { x = 20, y = 10, z = 6 } }
-		-- Panels along y-, x- and x+; none along y+ (the window).
-		local panels = { { x = 5, y = 1, z = 2 }, { x = 15, y = 1, z = 2 }, { x = 1, y = 5, z = 2 }, { x = 19, y = 5, z = 2 } }
-		local side, window = v.wall_side(bounds, panels)
-		eq(window, "y+") eq(side, "y-")
+		-- Panels along y+, x- and x+; none along y- (the open back the top-down camera looks through).
+		local panels = { { x = 5, y = 9, z = 2 }, { x = 15, y = 9, z = 2 }, { x = 1, y = 5, z = 2 }, { x = 19, y = 5, z = 2 } }
+		local side, across = v.wall_side(bounds, panels)
+		eq(side, "y-") eq(across, "y+")
+		-- No panel near any edge: the back (y-), as on the first game run.
+		eq((v.wall_side(bounds, {})), "y-", "the back when nothing tells the sides apart")
 		local slots = v.wall_layout(bounds, "y-", 4, 3)
 		local wall = 0
 		for _, s in ipairs(slots) do

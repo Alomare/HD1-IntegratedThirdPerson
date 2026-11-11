@@ -15,6 +15,8 @@ local scoped = obsidian.module("src/scoped")
 
 local M = {}
 
+M.NAME_HEIGHT = 2.3   -- metres above the feet where a name card goes in the shoulder view
+
 local function g(name) return rawget(_G, name) end
 
 -- A camera in plain numbers: position, forward, right and up unit vectors, fov (vertical, radians).
@@ -93,7 +95,21 @@ function M.install(env)
 		return asking > 0 and type(cm) == "table" and cm.viewport == viewport and cm.position and cm.rotation, cm
 	end
 
+	-- Player name cards: Hud.pre_update_and_draw_hud projects the feet of each player once and draws the
+	-- card just under that point. With names_above on, the shoulder view takes a point above the head.
+	local naming = false
+	local function name_on() naming = true end
+	local function name_off() naming = false end
+	obsidian.hook("Hud", "pre_update_and_draw_hud", function(original, ...)
+		if not state.active or env.config.get("names_above") == false then return original(...) end
+		return scoped.around(name_on, name_off, original, ...)
+	end, env.VIEW)
+
 	obsidian.hook("ViewportProxy", "world_to_viewport", function(original, self, p, ...)
+		if naming and asking == 0 and p then
+			naming = false
+			return original(self, g("Vector3")(p.x, p.y, p.z + M.NAME_HEIGHT), ...)
+		end
 		local yes, cm = ours(self)
 		if not yes then return original(self, p, ...) end
 		local w, h = self:window()

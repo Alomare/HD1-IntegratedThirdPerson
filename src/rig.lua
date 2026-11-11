@@ -14,6 +14,9 @@ M.AIM_FOV = 0.7            -- share of the field of view kept while aiming
 M.MOUSE_RATE = 0.12        -- degrees per count of the mouse, at look speed 1
 M.STICK_YAW, M.STICK_PITCH = 160, 110 -- degrees a second at full stick, at look speed 1
 M.STICK_DEADZONE = 0.15
+M.DIVE_DISTANCE = 0.55     -- share of the distance kept during a dive
+M.DIVE_IN, M.DIVE_OUT = 14, 5 -- how fast the camera closes in for a dive and backs out after (ease rates)
+M.SWAP_RATE = 9            -- how fast the camera crosses to the other shoulder (ease rate)
 M.MARGIN = 0.25            -- metres kept between the camera and a wall
 M.MIN_LENGTH = 0.35        -- the closest the camera comes to the pivot
 -- Pivot heights in a vehicle, by Obsidian API's vehicle kinds.
@@ -161,10 +164,12 @@ function M.follow_pivot(current, target, dt)
 end
 
 -- The camera's distance, field of view and side offset for this frame. opts: distance, fov (degrees),
--- side (1 right, -1 left), aim (0 to 1, how far into the aim zoom), vehicle (no shoulder offset).
+-- side (1 right, -1 left, anything between while the shoulder swaps), aim (0 to 1, how far into the aim
+-- zoom), dive (0 to 1, how far into the dive close-up), vehicle (no shoulder offset).
 function M.lens(opts)
 	local aim = clamp(opts.aim or 0, 0, 1)
-	local distance = opts.distance * (1 + (M.AIM_DISTANCE - 1) * aim)
+	local dive = clamp(opts.dive or 0, 0, 1)
+	local distance = opts.distance * (1 + (M.AIM_DISTANCE - 1) * aim) * (1 + (M.DIVE_DISTANCE - 1) * dive)
 	local fov = opts.fov * (1 + (M.AIM_FOV - 1) * aim)
 	local side = 0
 	if not opts.vehicle then side = (opts.side or 1) * M.SHOULDER * (1 + 0.15 * aim) end

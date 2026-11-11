@@ -1,7 +1,7 @@
 {
   "obsidian": 1,
   "id": "alomare.integratedthirdperson",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "name": {
     "en": "Integrated Third Person"
   },
@@ -47,6 +47,7 @@
     "src/crosshair.lua",
     "src/view.lua",
     "src/radar.lua",
+    "src/footsteps.lua",
     "src/session.lua"
   ],
   "requires": [
@@ -56,8 +57,9 @@
   "option_groups": [
     { "id": "camera", "label": { "en": "Camera on foot" } },
     { "id": "vehicles", "label": { "en": "Camera in vehicles" } },
-    { "id": "indicators", "label": { "en": "Enemy indicators" } },
+    { "id": "indicators", "label": { "en": "Indicators and names" } },
     { "id": "world", "label": { "en": "View distance, sky and ship" } },
+    { "id": "sound", "label": { "en": "Sound" } },
     { "id": "lobby", "label": { "en": "Lobby-wide changes" } }
   ],
   "options": [
@@ -82,6 +84,10 @@
       "group": "camera", "part": "view", "scope": "client",
       "label": { "en": "Invert vertical look" },
       "description": { "en": "Moving the mouse up looks down." } },
+    { "id": "dive_camera", "type": "toggle", "default": true,
+      "group": "camera", "part": "view", "scope": "client",
+      "label": { "en": "Dive camera" },
+      "description": { "en": "Brings the camera in close during a dive, quickly but smoothly, and eases it back out once the dive ends." } },
     { "id": "vehicle_distance", "type": "number", "default": 7, "min": 3, "max": 20, "step": 0.5,
       "group": "vehicles", "part": "view", "scope": "client",
       "label": { "en": "Vehicle camera distance (m)" },
@@ -98,6 +104,10 @@
       "group": "indicators", "part": "view", "scope": "client", "visible_when": { "radar": true },
       "label": { "en": "Indicator range (m)" },
       "description": { "en": "Enemies closer than this get a mark." } },
+    { "id": "names_above", "type": "toggle", "default": true,
+      "group": "indicators", "part": "view", "scope": "client",
+      "label": { "en": "Names above heads" },
+      "description": { "en": "In third person, the name cards of players show above their heads instead of at their feet." } },
     { "id": "far_view", "type": "toggle", "default": true,
       "group": "world", "part": "view", "scope": "client",
       "label": { "en": "Long view distance" },
@@ -110,6 +120,11 @@
       "group": "world", "part": "view", "scope": "client",
       "label": { "en": "Ship walls" },
       "description": { "en": "Closes the open back of the Super Destroyer bridge with wall panels, which the top-down camera never showed." } },
+    { "id": "footsteps", "type": "choice", "default": "loudest",
+      "choices": [ { "id": "normal", "label": { "en": "Normal" } }, { "id": "louder", "label": { "en": "Louder" } }, { "id": "loudest", "label": { "en": "Loudest" } } ],
+      "group": "sound", "part": "view", "scope": "client",
+      "label": { "en": "Footsteps" },
+      "description": { "en": "In third person, each footstep of Helldivers and enemies plays more than once, so steps out of view are easier to hear. Louder plays a step twice, Loudest four times. Normal leaves the steps as in the game." } },
     { "id": "max_weapon_range", "type": "toggle", "default": true,
       "group": "lobby", "part": "weapon_range",
       "label": { "en": "Max weapon range" },
@@ -121,7 +136,7 @@
   ],
   "keybinds": [
     { "id": "toggle_view", "default": "f8", "label": { "en": "Switch between third person and the top-down camera" } },
-    { "id": "swap_shoulder", "default": "v", "label": { "en": "Swap the camera shoulder" } }
+    { "id": "swap_shoulder", "default": "h", "label": { "en": "Swap the camera shoulder" } }
   ],
   "resources": [
     { "type": "render_config", "name": "#1a9c33dcd0301dfd", "bundle": "1a9c33dcd0301dfd", "data": "res/render_config.bin", "part": "view", "when": { "fix_sky": true } },

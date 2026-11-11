@@ -43,7 +43,7 @@ local env = {
 config.start(env)
 
 local started = {}
-for _, name in ipairs({ "src/camera", "src/aim", "src/crosshair", "src/view", "src/radar", "src/session" }) do
+for _, name in ipairs({ "src/camera", "src/aim", "src/crosshair", "src/view", "src/radar", "src/footsteps", "src/session" }) do
 	local ok, err = pcall(function()
 		local m = obsidian.module(name)
 		if m and m.start then m.start(env) end
@@ -53,7 +53,7 @@ for _, name in ipairs({ "src/camera", "src/aim", "src/crosshair", "src/view", "s
 end
 
 -- What other mods get from obsidian.import("alomare.integratedthirdperson").
-local export = { version = "0.1.2" }
+local export = { version = "0.2.0" }
 
 -- Where shots go on screen while third person steers the view: { x, y, aiming }, in pixels from the
 -- bottom left (the coordinates of obsidian.ui.canvas). nil while the top-down camera is on.
@@ -72,6 +72,15 @@ end
 -- true while third person steers the view.
 function export.active()
 	return state.active
+end
+
+-- The shoulder the camera sits over while third person steers the view: 1 right, -1 left, nil in the
+-- top-down view. During a swap, the shoulder the camera is moving to.
+function export.shoulder()
+	if not state.active then return nil end
+	local camera = env.camera
+	local side = camera and camera.view and camera.view.side
+	return side == -1 and -1 or 1
 end
 
 return export

@@ -245,6 +245,98 @@ return {
 		E.remove()
 	end },
 
+	{ "a second player joining turns third person off with a message, and leaving brings it back", function()
+		local e, env = started()
+		local cam = obsidian.module("src/camera")
+		local function said(text)
+			local n = 0
+			for _, l in ipairs(LOGS) do if l == "toast: " .. text then n = n + 1 end end
+			return n
+		end
+		local masters = E.player(e, "me")
+		frame(e, env, masters)
+		eq(env.state.active, true, "one player")
+		e.units.friend = { position = { x = 0, y = 0, z = 0 }, forward = { x = 0, y = 1, z = 0 }, character = {} }
+		masters.friend = { state = { pad_number = 1, input_data = { is_active = true } } }
+		frame(e, env, masters)
+		frame(e, env, masters)
+		eq(env.state.active, false, "two players share the screen")
+		eq(said(cam.SHARED_TEXT), 1, "the reason, once")
+		masters.friend = nil
+		frame(e, env, masters)
+		eq(env.state.active, true, "one player again")
+		eq(said(cam.BACK_TEXT), 1, "back, said once")
+		E.remove()
+	end },
+
+	{ "a dive brings the camera in fast, and eases it back out after", function()
+		local e, env = started()
+		local masters = E.player(e, "me")
+		e.units.me.health = { is_dodging = false }
+		local function back()
+			local v = env.view
+			return rig().dot(rig().sub(v.pivot, v.position), v.forward)
+		end
+		for _ = 1, 30 do frame(e, env, masters, 0.05) end
+		local before = back()
+		near(before, 3, "the on-foot distance", 1e-3)
+		e.units.me.health.is_dodging = true
+		frame(e, env, masters, 0.05)
+		local first = back()
+		assert(first < before and first > before * rig().DIVE_DISTANCE + 0.1, "on the way in, not there at once: " .. first)
+		for _ = 1, 20 do frame(e, env, masters, 0.05) end
+		near(back(), before * rig().DIVE_DISTANCE, "close in", 1e-2)
+		e.units.me.health.is_dodging = false
+		frame(e, env, masters, 0.05)
+		assert(back() < before * 0.8, "backs out more slowly than it came in: " .. back())
+		for _ = 1, 80 do frame(e, env, masters, 0.05) end
+		near(back(), before, "all the way out", 1e-2)
+		OPTIONS.dive_camera = false
+		e.units.me.health.is_dodging = true
+		for _ = 1, 5 do frame(e, env, masters, 0.05) end
+		near(back(), before, "option off: no close-up", 1e-2)
+		E.remove()
+	end },
+
+	{ "the shoulder swap eases across instead of jumping", function()
+		local e, env = started()
+		local masters = E.player(e, "me")
+		local function side()
+			local v = env.view
+			return rig().dot(rig().sub(v.position, v.pivot), rig().right(v.yaw))
+		end
+		for _ = 1, 5 do frame(e, env, masters, 0.05) end
+		near(side(), rig().SHOULDER, "right shoulder", 1e-6)
+		KEYS.swap_shoulder.fn()
+		frame(e, env, masters, 0.05)
+		local s = side()
+		assert(s < rig().SHOULDER - 0.1 and s > -rig().SHOULDER + 0.1, "on the way across: " .. s)
+		for _ = 1, 40 do frame(e, env, masters, 0.05) end
+		near(side(), -rig().SHOULDER, "left shoulder", 1e-3)
+		E.remove()
+	end },
+
+	{ "name cards go above heads in the shoulder view", function()
+		local e, env = started()
+		local masters = E.player(e, "me")
+		frame(e, env, masters)
+		local seen = {}
+		local w2v, hud = E.hook("ViewportProxy", "world_to_viewport"), E.hook("Hud", "pre_update_and_draw_hud")
+		local function project(_, p) seen[#seen + 1] = p.z return p end
+		local function game()
+			w2v(project, e.viewport, E.V3(0, 0, 0))
+			w2v(project, e.viewport, E.V3(0, 0, 0))
+		end
+		hud(game, {})
+		eq(seen[1], obsidian.module("src/frustum").NAME_HEIGHT, "the feet point goes above the head")
+		eq(seen[2], 0, "only the first projection of each card")
+		seen = {}
+		OPTIONS.names_above = false
+		hud(game, {})
+		eq(seen[1], 0, "option off: at the feet")
+		E.remove()
+	end },
+
 	{ "Obsidian API bots on this machine don't count as a second player", function()
 		local bot = { unit = function() return "bot" end }
 		local e, env = started({ bots = { all = function() return { bot } end } })

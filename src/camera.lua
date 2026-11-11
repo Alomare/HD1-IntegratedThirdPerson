@@ -30,8 +30,11 @@ M.input = nil         -- the local player's input this frame (from InputComponen
 M.frame = 0
 M.warned = {}
 M.dropped = 0         -- lines logged when the view went back to top-down, at most 20 a launch
+M.last_why = nil      -- why the view stayed top-down last frame, nil while the shoulder camera ran
+M.SHARED_TEXT = "Third person is off: players on one computer share the screen, so the top-down camera stays. It comes back when one player is left."
+M.BACK_TEXT = "One player on this computer: third person is back."
 
-local smooth = { pivot = nil, length = nil, aim = 0, target = nil }
+local smooth = { pivot = nil, length = nil, aim = 0, target = nil, side = nil, dive = 0 }
 local saved_near = nil
 
 -- The local player's master of InputComponent: the avatar, the context of that master, and whether another local
@@ -136,6 +139,13 @@ function M.target(env, avatar)
 	return avatar, nil
 end
 
+-- Whether the Helldiver is in a dive: the dive sets is_dodging in the health state until the body lands.
+function M.diving(avatar)
+	local EA = g("EntityAux")
+	local ok, hs = pcall(EA.state, avatar, "health")
+	return ok and type(hs) == "table" and hs.is_dodging == true
+end
+
 local function vec(v) return { x = v.x, y = v.y, z = v.z } end
 
 -- The shortest free length along a line, from three rays: the line and two beside it, so the camera
@@ -164,7 +174,7 @@ function M.release(env, cm)
 	if not state.active then return end
 	state.active, state.vehicle, state.aiming, state.crosshair = false, false, false, nil
 	env.view = nil
-	smooth.pivot, smooth.length, smooth.aim, smooth.target = nil, nil, 0, nil
+	smooth.pivot, smooth.length, smooth.aim, smooth.target, smooth.side, smooth.dive = nil, nil, 0, nil, nil, 0
 	M.view.yaw = nil
 	if type(cm) == "table" and cm.viewport then
 		pcall(function()
@@ -213,13 +223,17 @@ function M.drive(env, cm, dt)
 			M.warned.tpc = true
 			obsidian.toast("Integrated Third Person stays off: Third Person Camera is installed.", 8)
 			env.log("Third Person Camera found (HD2CAM_OVERLAY); staying off")
-		elseif why == "shared" and not M.warned.shared then
-			M.warned.shared = true
-			obsidian.toast("Third person needs one player on this computer.", 6)
+		elseif why == "shared" and M.last_why ~= "shared" then
+			-- Players on one computer share one screen, which only the top-down camera can show.
+			obsidian.toast(M.SHARED_TEXT, 8)
+			env.log("Integrated Third Person: off while players share this computer")
 		end
+		M.last_why = why
 		M.release(env, cm)
 		return false
 	end
+	if M.last_why == "shared" then obsidian.toast(M.BACK_TEXT, 4) end
+	M.last_why = nil
 	local input = M.input
 	local avatar = input.unit
 	local U, Q, V3, C = g("Unit"), g("Quaternion"), g("Vector3"), g("Camera")
@@ -245,6 +259,10 @@ function M.drive(env, cm, dt)
 	end
 	smooth.aim = rig.ease(smooth.aim, (input.aiming and not kind) and 1 or 0, 12, dt)
 	state.aiming = input.aiming and not kind and true or false
+	-- The shoulder swap and the dive close-up ease in, so neither jumps.
+	smooth.side = smooth.side and rig.ease(smooth.side, view.side, rig.SWAP_RATE, dt) or view.side
+	local diving = not kind and config.get("dive_camera") ~= false and M.diving(avatar)
+	smooth.dive = rig.ease(smooth.dive, diving and 1 or 0, diving and rig.DIVE_IN or rig.DIVE_OUT, dt)
 
 	-- Pivot and lens.
 	local p = U.world_position(target, 0)
@@ -253,7 +271,7 @@ function M.drive(env, cm, dt)
 	local distance, fov, side = rig.lens({
 		distance = kind and (config.get("vehicle_distance") or 7) or (config.get("foot_distance") or 3),
 		fov = kind and (config.get("vehicle_fov") or 75) or (config.get("foot_fov") or 70),
-		side = view.side, aim = smooth.aim, vehicle = kind ~= nil })
+		side = smooth.side, aim = smooth.aim, dive = smooth.dive, vehicle = kind ~= nil })
 	local at, dir, full = rig.place(smooth.pivot, view.yaw, view.pitch, distance, side)
 
 	-- Walls and rocks pull the camera in.

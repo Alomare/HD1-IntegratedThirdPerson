@@ -61,8 +61,11 @@ function M.sky_intensity(name, fog)
 	return rig.clamp(2 * lum(fog) / math.max(0.02, lum(drawn)), 0.5, 4)
 end
 
--- The open side of the bridge: of the four sides of the bounds, the one with the fewest panels near
--- the edge is the window, and the wall goes on the side across from it. positions: the game's panels.
+-- The open side of the bridge, where the top-down camera looks in: of the four sides of the bounds, the
+-- one with the fewest game panels near the edge. The wall goes there. (Third Person Camera put the wall
+-- across from that side and kept a key to flip it; on the first game run that put the wall at the
+-- front, and the open back stayed open.) Answers the side and the one across. positions: the game's
+-- panels.
 function M.wall_side(bounds, positions)
 	local counts = { ["y-"] = 0, ["y+"] = 0, ["x-"] = 0, ["x+"] = 0 }
 	for _, p in ipairs(positions) do
@@ -71,12 +74,12 @@ function M.wall_side(bounds, positions)
 		if p.x < bounds.min.x + 3 then counts["x-"] = counts["x-"] + 1 end
 		if p.x > bounds.max.x - 3 then counts["x+"] = counts["x+"] + 1 end
 	end
-	local window = "y-"
+	local open = "y-"
 	for _, side in ipairs({ "y+", "x-", "x+" }) do
-		if counts[side] < counts[window] then window = side end
+		if counts[side] < counts[open] then open = side end
 	end
 	local across = { ["y-"] = "y+", ["y+"] = "y-", ["x-"] = "x+", ["x+"] = "x-" }
-	return across[window], window
+	return open, across[open]
 end
 
 -- Where the panels go: a wall of width w by height h panels along `side`, facing in, from the floor
