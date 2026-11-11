@@ -47,7 +47,7 @@ The mod comes in parts. The camera, aim, view, sky, ship walls and enemy indicat
 
 These two run only in a lobby where every player runs Obsidian and allows the same mods. When a player without them joins, both switch off at once and the camera keeps working. With both options off, the mod counts as a client mod: Galactic War results are sent as usual.
 
-Parts need Obsidian 1.5.0 or later. An older Obsidian treats the whole mod as a session mod, so the camera also stops in lobbies with players who don't run it.
+Parts need Obsidian 2.0.0 or later. An older Obsidian treats the whole mod as a session mod, so the camera also stops in lobbies with players who don't run it.
 
 ## Working with other mods
 
