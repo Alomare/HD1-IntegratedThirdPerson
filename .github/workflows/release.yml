@@ -1,16 +1,9 @@
-# A release: pushing a tag like v1.2.0 packs the mod into a zip and publishes it, and Obsidian offers
-# it as an update to anyone on an older version.
-#
-# The rules for a release:
-# - The tag matches "version" in obsidian.json.
-# - docs/releases/<version>.md holds the changelog, when the release has one: a list with one
-#   change per line, such as "- Added a sky over the level.", and nothing else. It becomes the release text on
-#   GitHub. Without the file, the release goes out with no text.
-# - The changelog follows the rules for public text: plain wording, no em or en dashes, and none of
-#   the words that tools/release_check.py looks for.
-#
-# A tag with a suffix (v1.2.0-beta.1) makes a prerelease, which Obsidian doesn't offer, so use one to
-# try a build by hand. What goes in the zip is set by export-ignore in .gitattributes.
+# A release: pushing a tag like v1.2.0 packs the mod into a zip and publishes it, and Obsidian offers it as an
+# update to anyone on an older version. The steps are the shared ones for Obsidian mods
+# (Alomare/HD1-LuaModdingSkill, .github/workflows/mod-release.yml): the tag has to match "version" in
+# obsidian.json, the release notes are the file docs/releases/<version>.md and follow the rules for
+# public text, the tests pass, and export-ignore in .gitattributes sets what goes in the zip. A tag with a
+# suffix (v1.2.0-beta.1) makes a prerelease, which Obsidian doesn't offer.
 name: Release
 
 on:
@@ -22,37 +15,6 @@ permissions:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: The tag matches obsidian.json, and a changelog, if there is one, follows the rules
-        run: |
-          v="${GITHUB_REF_NAME#v}"
-          have=$(jq -r .version obsidian.json)
-          [ "$have" = "$v" ] || { echo "obsidian.json says $have, the tag says $GITHUB_REF_NAME"; exit 1; }
-          if [ -f "docs/releases/$v.md" ]; then
-            [ -s "docs/releases/$v.md" ] || { echo "::error::docs/releases/$v.md is empty"; exit 1; }
-            python3 tools/release_check.py "docs/releases/$v.md"
-          else
-            echo "No docs/releases/$v.md, so the release goes out with no text"
-          fi
-
-      - name: Tests
-        run: |
-          sudo apt-get install -y -qq luajit >/dev/null
-          luajit tests/run.lua
-
-      - name: Pack and publish
-        run: |
-          id=$(jq -r .id obsidian.json)
-          version="${GITHUB_REF_NAME#v}"
-          git archive --format=zip --prefix="$id/" -o "$id-$version.zip" "$GITHUB_SHA"
-          pre=""
-          [[ "$GITHUB_REF_NAME" == *-* ]] && pre="--prerelease"
-          notes=(--notes "")
-          if [ -f "docs/releases/$version.md" ]; then notes=(--notes-file "docs/releases/$version.md"); fi
-          gh release create "$GITHUB_REF_NAME" "$id-$version.zip" --title "$(jq -r .name.en obsidian.json) $version" \
-            "${notes[@]}" $pre
+    uses: Alomare/HD1-LuaModdingSkill/.github/workflows/mod-release.yml@main
+    with:
+      changelog: docs/releases
