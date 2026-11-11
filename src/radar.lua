@@ -1,35 +1,41 @@
--- Enemy indicators: marks on a ring around the crosshair, each pointing toward enemies within range.
--- HELLDIVERS was made for a view from above, where everything around the Helldiver is on screen, so
--- enemies make little sound. In third person most of them are out of view; the marks say where.
+-- Enemy indicators: a thin white arc with a small arrow on a ring around the crosshair, one for each
+-- enemy within range that the Helldiver has a clear line to. HELLDIVERS was made for a view from above,
+-- where everything around the Helldiver is on screen, so enemies make little sound. In third person
+-- most of them are out of view; the marks say where.
 --
 -- Every frame: the enemies this machine knows (the "enemy" slaves of the entity manager, through
 -- Obsidian API), the living ones within range, and the bearing of each from the way the camera faces
 -- over the ground, read from the engine camera, so the top-down view works too. The nearest MAX_SCAN
--- go into a pool, close bearings merge, and at most MAX_MARKS are drawn: larger and stronger as the
--- enemy comes closer, doubled for enemies behind, heavier for big enemies, faint for enemies already
--- in view. Nothing per enemy makes a table: the pools stay from frame to frame, and whether an enemy
--- is big is looked up once per enemy.
+-- are tracked. A ray from the chest of the Helldiver to each tracked enemy, against the level only,
+-- says whether the enemy is in sight; each enemy is checked again every RECHECK frames, at most RAYS a
+-- frame. A mark grows stronger as the enemy comes closer, from ALPHA_FAR at the range to ALPHA_NEAR at
+-- the player, and is larger for enemies with more hitpoints (SCALE_SMALL to SCALE_BIG). Every change
+-- fades: a mark coming into sight, leaving it, or an enemy dying.
+--
+-- No tables per frame: the pool of nearest enemies stays from frame to frame, and each tracked enemy
+-- keeps one record until the mark has faded out.
 local M = {}
 
-M.MAX_MARKS = 8      -- marks drawn at most
-M.MAX_SCAN = 24      -- nearest enemies weighed for the marks
-M.MERGE = 14         -- degrees: enemies closer together than this share one mark
-M.BEHIND = 120       -- degrees from the facing past which an enemy counts as behind
-M.BIG_HP = 900       -- most hitpoints from which an enemy counts as big (Obsidian API brain.lua BIG_HP)
-M.BIG_RADIUS = 1     -- unit_radius from which an enemy counts as big: Hulks, Tripods and Striders, Tanks
-M.RING = 0.085       -- ring radius, as a share of the screen height
-M.SIZE_FAR, M.SIZE_NEAR = 8, 18 -- mark length in pixels at 1080 lines, at the range and at the player
-M.BIG_SIZE = 1.45    -- big enemies: this much larger, with a dark edge
-M.MERGED_SIZE = 0.15 -- each extra enemy in a mark adds this much, up to MERGED_MAX extra enemies
-M.MERGED_MAX = 3
-M.ALPHA_FAR, M.ALPHA_NEAR = 0.35, 1
-M.IN_VIEW = 0.3      -- marks of enemies already on screen keep this much of their strength
+M.MAX_SCAN = 16      -- nearest enemies tracked
+M.RAYS = 6           -- sight rays cast a frame at most
+M.RECHECK = 8        -- frames before an enemy is checked again
+M.EYE = 1.4          -- metres above the feet of the Helldiver the sight ray starts
+M.CHEST = 1          -- metres above the feet of the enemy it ends
+M.SLACK = 0.4        -- metres short of the enemy a hit still leaves it in sight
+M.RING = 0.11        -- ring radius, as a share of the screen height
+M.ARC = 18           -- degrees the arc spans, at size 1
+M.THICK, M.THICK_END = 2.4, 0.8 -- arc thickness in pixels at 1080 lines, in the middle and at the ends
+M.ARROW_LENGTH, M.ARROW_HALF = 5.5, 4.5 -- the arrow on the arc, pixels at 1080 lines
+M.SEGMENTS = 6       -- pieces each arc is drawn in
+M.ALPHA_FAR, M.ALPHA_NEAR = 0.2, 0.9
+M.FADE = 18          -- how fast a mark fades in and out (ease rate, per second)
+M.HP_SMALL, M.HP_BIG = 60, 3000 -- hitpoints at size SCALE_SMALL and SCALE_BIG, log scale between
+M.SCALE_SMALL, M.SCALE_BIG = 0.8, 1.2
 M.LAYER = 480        -- under the crosshair of Integrated Third Person (500)
 M.PAUSE = 300        -- frames without marks after an error
-M.COLOR = { 255, 64, 40 }
-M.EDGE = { 24, 6, 4 }
+M.COLOR = { 255, 255, 255 }
 
-local sqrt, atan2, deg, rad, cos, sin, abs = math.sqrt, math.atan2, math.deg, math.rad, math.cos, math.sin, math.abs
+local sqrt, atan2, deg, rad, cos, sin, log, exp = math.sqrt, math.atan2, math.deg, math.rad, math.cos, math.sin, math.log, math.exp
 
 -- Pure parts ----------------------------------------------------------------------------------------
 
@@ -56,13 +62,6 @@ function M.bearing(dx, dy, hx, hy)
 	return deg(atan2(right, ahead))
 end
 
--- The smallest turn from bearing a to bearing b, in degrees, from -180 to 180.
-function M.angle_gap(a, b)
-	local d = (b - a) % 360
-	if d > 180 then d = d - 360 end
-	return d
-end
-
 -- 1 at the player, 0 at the range and past it.
 function M.closeness(d, range)
 	if not range or range <= 0 then return 0 end
@@ -72,27 +71,30 @@ function M.closeness(d, range)
 	return c
 end
 
-function M.behind(bearing)
-	return abs(bearing) > M.BEHIND
+-- Strength from ALPHA_FAR at the range to ALPHA_NEAR at the player.
+function M.alpha(c)
+	return M.ALPHA_FAR + (M.ALPHA_NEAR - M.ALPHA_FAR) * c
 end
 
--- Whether an enemy counts as big, from the settings of the unit (LuaSettingsManager) and the most
--- hitpoints it has: the game marks Tanks, Impalers and the IFV heavy or large, and Hulks, Tripods
--- and Striders stand on a wide base.
-function M.is_big(settings, max_hp)
-	if type(settings) == "table" then
-		if settings.heavy == true then return true end
-		local hi = settings.health_info
-		if type(hi) == "table" and hi.large == true then return true end
-		if (tonumber(settings.unit_radius) or 0) >= M.BIG_RADIUS then return true end
-	end
-	return (tonumber(max_hp) or 0) >= M.BIG_HP
+-- Size of a mark from the most hitpoints of the enemy: SCALE_SMALL at HP_SMALL and below, SCALE_BIG at
+-- HP_BIG and above, on a log scale between.
+function M.scale_of(max_hp)
+	local hp = tonumber(max_hp)
+	if not hp or hp <= M.HP_SMALL then return M.SCALE_SMALL end
+	if hp >= M.HP_BIG then return M.SCALE_BIG end
+	local t = (log(hp) - log(M.HP_SMALL)) / (log(M.HP_BIG) - log(M.HP_SMALL))
+	return M.SCALE_SMALL + (M.SCALE_BIG - M.SCALE_SMALL) * t
+end
+
+-- A share of the way to the target this frame, the same at any frame rate.
+function M.ease(current, target, rate, dt)
+	return current + (target - current) * (1 - exp(-rate * dt))
 end
 
 -- Puts an enemy into `pool` (records reused from frame to frame), kept nearest first, at most `cap`
 -- long; `n` is how many are in use. Answers the new count. A record is only made while the pool grows
 -- past any earlier frame.
-function M.insert(pool, n, cap, d, bearing, big, in_view)
+function M.insert(pool, n, cap, d, bearing, unit)
 	local rec
 	if n < cap then
 		n = n + 1
@@ -105,7 +107,7 @@ function M.insert(pool, n, cap, d, bearing, big, in_view)
 		if d >= pool[n].d then return n end
 		rec = pool[n]
 	end
-	rec.d, rec.bearing, rec.big, rec.in_view = d, bearing, big, in_view
+	rec.d, rec.bearing, rec.unit = d, bearing, unit
 	local i = n
 	while i > 1 and pool[i - 1].d > d do
 		pool[i] = pool[i - 1]
@@ -115,58 +117,35 @@ function M.insert(pool, n, cap, d, bearing, big, in_view)
 	return n
 end
 
--- Marks from the `n` nearest records of `pool` (nearest first): a record within `spread` degrees of a
--- mark already made joins that mark (count, big, in view only if all are), else makes a new one while
--- fewer than `max` exist. A mark keeps the bearing and distance of the nearest enemy in it. Answers
--- the number of marks.
-function M.merge(pool, n, marks, max, spread)
-	local m = 0
-	for i = 1, n do
-		local e = pool[i]
-		local into = nil
-		for j = 1, m do
-			if abs(M.angle_gap(marks[j].bearing, e.bearing)) < spread then
-				into = marks[j]
-				break
-			end
-		end
-		if into then
-			into.count = into.count + 1
-			into.big = into.big or e.big
-			into.in_view = into.in_view and e.in_view
-		elseif m < max then
-			m = m + 1
-			local k = marks[m]
-			if not k then
-				k = {}
-				marks[m] = k
-			end
-			k.bearing, k.d, k.big, k.in_view, k.count = e.bearing, e.d, e.big, e.in_view, 1
-			k.behind = M.behind(e.bearing)
-		end
-	end
-	return m
-end
-
--- Mark length in pixels at 1080 lines, from how close (0 to 1), big, and how many enemies it holds.
-function M.size(c, big, count)
-	local s = M.SIZE_FAR + (M.SIZE_NEAR - M.SIZE_FAR) * c
-	if big then s = s * M.BIG_SIZE end
-	local extra = math.min((count or 1) - 1, M.MERGED_MAX)
-	if extra > 0 then s = s * (1 + M.MERGED_SIZE * extra) end
-	return s
-end
-
--- Strength from 0 to 1.
-function M.alpha(c, in_view)
-	local a = M.ALPHA_FAR + (M.ALPHA_NEAR - M.ALPHA_FAR) * c
-	if in_view then a = a * M.IN_VIEW end
-	return a
+-- Whether the line from (fx, fy, fz) to (tx, ty, tz) is clear: cast(sx, sy, sz, dx, dy, dz, length)
+-- answers the distance to the first piece of level along the way, or nil.
+function M.in_sight(cast, fx, fy, fz, tx, ty, tz)
+	local dx, dy, dz = tx - fx, ty - fy, tz - fz
+	local length = sqrt(dx * dx + dy * dy + dz * dz)
+	if length < 1e-3 then return true end
+	local hit = cast(fx, fy, fz, dx / length, dy / length, dz / length, length)
+	return not hit or hit >= length - M.SLACK
 end
 
 -- The angle on screen (radians, 0 to the right, counter-clockwise, y up) of a bearing: ahead is up.
 function M.screen_angle(bearing)
 	return rad(90 - bearing)
+end
+
+-- Piece i (0 to n - 1) of an arc centred on the angle theta round (cx, cy): the inner edge at radius r,
+-- `span` radians long, thick `mid` pixels in the middle and `edge` at the ends. Written into `out`
+-- { x1, y1, ... x4, y4 }, inner start, outer start, outer end, inner end.
+function M.arc_piece(out, cx, cy, theta, r, span, i, n, mid, edge)
+	local u0, u1 = -1 + 2 * i / n, -1 + 2 * (i + 1) / n
+	local a0, a1 = theta + u0 * span / 2, theta + u1 * span / 2
+	local t0 = edge + (mid - edge) * (1 - u0 * u0)
+	local t1 = edge + (mid - edge) * (1 - u1 * u1)
+	local c0, s0, c1, s1 = cos(a0), sin(a0), cos(a1), sin(a1)
+	out[1], out[2] = cx + c0 * r, cy + s0 * r
+	out[3], out[4] = cx + c0 * (r + t0), cy + s0 * (r + t0)
+	out[5], out[6] = cx + c1 * (r + t1), cy + s1 * (r + t1)
+	out[7], out[8] = cx + c1 * r, cy + s1 * r
+	return out
 end
 
 -- A triangle pointing outward from (cx, cy) at angle `theta`: the base `from` pixels out and `half`
@@ -199,26 +178,24 @@ function M.start(env)
 		config.on_change("radar_range", function(v) range = tonumber(v) or range end)
 	end
 
-	local pool, marks = {}, {}
-	local tri, tri2 = { 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 }
-	local fill, edge = { M.COLOR[1], M.COLOR[2], M.COLOR[3], 255 }, { M.EDGE[1], M.EDGE[2], M.EDGE[3], 255 }
+	local pool = {}
+	local tracks = {}     -- unit: { a (strength now), seen, check (frame of the next ray), scale, bearing, d, on, near }
+	local tracked = 0
+	local frame_no = 0
+	local piece, tri = { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 }
+	local fill = { M.COLOR[1], M.COLOR[2], M.COLOR[3], 255 }
 
-	-- Whether each enemy is big, looked up once; dropped with a new mission or when it grows long.
-	local big, big_count, big_of_map = {}, 0, nil
-	local function big_of(unit, health, enemies)
-		if enemies ~= big_of_map or big_count > 512 then
-			big, big_count, big_of_map = {}, 0, enemies
-		end
-		local b = big[unit]
-		if b == nil then
-			local lsm = g("LuaSettingsManager")
-			local ok, settings = false, nil
-			if type(lsm) == "table" and lsm.get_settings_by_unit then ok, settings = pcall(lsm.get_settings_by_unit, lsm, unit) end
-			b = M.is_big(ok and settings or nil, health.max_hitpoints)
-			big[unit] = b
-			big_count = big_count + 1
-		end
-		return b
+	-- The sight ray, against the level only. pw is the physics world of this frame.
+	local pw, PW, V3 = nil, nil, nil
+	local function cast(sx, sy, sz, dx, dy, dz, length)
+		local hit, _, distance = PW.immediate_raycast(pw, V3(sx, sy, sz), V3(dx, dy, dz), length,
+			"closest", "types", "statics", "collision_filter", "default")
+		if hit and type(distance) == "number" then return distance end
+		return nil
+	end
+
+	local function physics_of(cm)
+		return g("World").physics_world(cm.viewport:get_world_proxy():get_world())
 	end
 
 	local function shown(api)
@@ -237,15 +214,26 @@ function M.start(env)
 		return true
 	end
 
+	local function forget()
+		if tracked > 0 then
+			for unit in pairs(tracks) do tracks[unit] = nil end
+			tracked = 0
+		end
+	end
+
 	local function frame()
 		local api = env.api
-		if not (api and api.game and api.game.in_mission and api.game.in_mission()) then return end
+		if not (api and api.game and api.game.in_mission and api.game.in_mission()) then return forget() end
 		if not shown(api) then return end
 		local me = api.game.my_unit()
 		if not me then return end
 		local U, aux, cm = g("Unit"), g("EntityAux"), g("CameraManager")
-		local C, Q, V3 = g("Camera"), g("Quaternion"), g("Vector3")
+		local C, Q = g("Camera"), g("Quaternion")
+		PW, V3 = g("PhysicsWorld"), g("Vector3")
 		if not (U and aux and cm and cm.viewport and C and Q and V3) then return end
+		local dt = g("ENGINE_DT")
+		dt = type(dt) == "number" and dt > 0 and math.min(dt, 0.1) or 1 / 60
+		frame_no = frame_no + 1
 
 		-- The camera, as the engine has it this frame.
 		local cam = cm.viewport:get_camera()
@@ -260,9 +248,14 @@ function M.start(env)
 			x0, y0 = 0, 0
 		end
 		x0, y0 = x0 or 0, y0 or 0
+		pw = nil
+		if PW then
+			local ok, found = pcall(physics_of, cm)
+			if ok then pw = found end
+		end
 
 		local p = U.world_position(me, 0)
-		local px, py = p.x, p.y
+		local px, py, pz = p.x, p.y, p.z
 		local enemies = api.game.slaves("enemy")
 		local n = 0
 		for unit in pairs(enemies) do
@@ -273,15 +266,37 @@ function M.start(env)
 					local dx, dy = q.x - px, q.y - py
 					local d = sqrt(dx * dx + dy * dy)
 					if d <= range and (n < M.MAX_SCAN or d < pool[n].d) then
-						local s = cm:world_to_screen(V3(q.x, q.y, q.z + 1))
-						local in_view = s.z > 0 and s.x >= x0 and s.x <= x0 + w and s.y >= y0 and s.y <= y0 + h
-						n = M.insert(pool, n, M.MAX_SCAN, d, M.bearing(dx, dy, hx, hy), big_of(unit, health, enemies), in_view)
+						n = M.insert(pool, n, M.MAX_SCAN, d, M.bearing(dx, dy, hx, hy), unit)
 					end
 				end
 			end
 		end
-		if n == 0 then return end
-		local m = M.merge(pool, n, marks, M.MAX_MARKS, M.MERGE)
+
+		for _, t in pairs(tracks) do t.on, t.near = false, false end
+		local rays = 0
+		for i = 1, n do
+			local e = pool[i]
+			local t = tracks[e.unit]
+			if not t then
+				local health = aux.state(e.unit, "health")
+				t = { a = 0, seen = false, check = 0, scale = M.scale_of(health and health.max_hitpoints) }
+				tracks[e.unit] = t
+				tracked = tracked + 1
+			end
+			t.bearing, t.d, t.near = e.bearing, e.d, true
+			if t.check <= frame_no and rays < M.RAYS then
+				rays = rays + 1
+				t.check = frame_no + M.RECHECK
+				if pw then
+					local q = U.world_position(e.unit, 0)
+					t.seen = M.in_sight(cast, px, py, pz + M.EYE, q.x, q.y, q.z + M.CHEST)
+				else
+					t.seen = true
+				end
+			end
+			t.on = t.seen
+		end
+		if tracked == 0 then return end
 
 		local scale = h / 1080
 		local cx, cy
@@ -292,23 +307,24 @@ function M.start(env)
 			cx, cy = x0 + w / 2, y0 + h / 2
 		end
 		local ring = M.RING * h
-		for i = 1, m do
-			local mk = marks[i]
-			local c = M.closeness(mk.d, range)
-			local size = M.size(c, mk.big, mk.count) * scale
-			local a = M.alpha(c, mk.in_view)
-			local theta = M.screen_angle(mk.bearing)
-			fill[4] = a * 255
-			edge[4] = a * 255
-			local half = size * 0.55
-			M.triangle(tri, cx, cy, theta, ring, size, half)
-			kit:poly(tri, fill)
-			if mk.big then kit:outline(tri, edge, math.max(1.5, size * 0.12)) end
-			if mk.behind then
-				-- A second, smaller arrow past the first: enemies the view turns away from.
-				M.triangle(tri2, cx, cy, theta, ring + size + 2 * scale, size * 0.75, half * 0.75)
-				kit:poly(tri2, fill)
-				if mk.big then kit:outline(tri2, edge, math.max(1.5, size * 0.1)) end
+		for unit, t in pairs(tracks) do
+			local want = t.on and M.alpha(M.closeness(t.d, range)) or 0
+			t.a = M.ease(t.a, want, M.FADE, dt)
+			if not t.near and t.a < 0.01 then
+				-- Out of the nearest and faded: forgotten. An enemy still near but out of sight stays,
+				-- with the sight ray schedule it has.
+				tracks[unit] = nil
+				tracked = tracked - 1
+			elseif t.a >= 0.01 then
+				local s = t.scale
+				local theta = M.screen_angle(t.bearing)
+				local mid, edge = M.THICK * s * scale, M.THICK_END * s * scale
+				local span = rad(M.ARC) * s
+				fill[4] = t.a * 255
+				for i = 0, M.SEGMENTS - 1 do
+					kit:poly(M.arc_piece(piece, cx, cy, theta, ring, span, i, M.SEGMENTS, mid, edge), fill)
+				end
+				kit:poly(M.triangle(tri, cx, cy, theta, ring + mid, M.ARROW_LENGTH * s * scale, M.ARROW_HALF * s * scale), fill)
 			end
 		end
 	end
@@ -316,7 +332,7 @@ function M.start(env)
 	-- An error rests the marks for PAUSE frames (a level tearing down, say) and is logged once.
 	local warned, wait = false, 0
 	obsidian.on_frame(function()
-		if not on then return end
+		if not on then return forget() end
 		if wait > 0 then
 			wait = wait - 1
 			return
@@ -324,6 +340,7 @@ function M.start(env)
 		local ok, err = pcall(frame)
 		if not ok then
 			wait = M.PAUSE
+			forget()
 			if not warned then
 				warned = true
 				env.log("Integrated Third Person: enemy indicators: " .. tostring(err))

@@ -12,7 +12,8 @@ Third Person Camera replaces 28 game scripts, so mods that change the same parts
 - A longer view: the fog, the far edge of the view and the detail of distant models are pushed out, so far enemies and landmarks show.
 - A sky over the level in the color of the planet fog, in place of the smears past the level.
 - Walls across the open back of the Super Destroyer bridge, which the top-down camera never showed, made from copies of the bridge wall panels.
-- Marks around the crosshair that point toward nearby enemies, larger and stronger as they come closer, since the game was made for a view from above and enemies make little sound.
+- A thin white arc with an arrow around the crosshair for each nearby enemy the Helldiver has a clear line to, since the game was made for a view from above and enemies make little sound. Closer enemies get a stronger mark, enemies with more health a larger one, and marks fade in and out.
+- Hit direction: a bar near the crosshair points toward where a hit came from and fades within 2 seconds. Red when health is lost, yellow when the personal shield takes the hit, white when the vehicle does. A bar for an enemy follows the enemy.
 - Louder footsteps for Helldivers and enemies: each step plays up to four times, so steps out of view are easier to hear. The sound files stay as they are.
 - Player name cards above heads instead of at the feet.
 - The rules of the game keep the top-down screen: enemies spawn, patrols raise the alarm and the squad stays together as in the game.
@@ -33,6 +34,7 @@ Every option is in Obsidian. The four camera distances and fields of view are al
 | | Vehicle field of view (degrees) | 75 |
 | Indicators and names | Enemy indicators | On |
 | | Indicator range (m) | 35 |
+| | Hit direction | On |
 | | Names above heads | On |
 | View distance, sky and ship | Long view distance | On |
 | | Sky | On (needs a deploy) |
