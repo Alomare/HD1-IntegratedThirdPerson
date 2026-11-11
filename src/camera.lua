@@ -5,6 +5,12 @@
 -- engine calls the game's update ends with (Camera.set_local_position and set_local_rotation, the field of
 -- view, World.update_unit, the grass observer and the sound listener).
 --
+-- While the shoulder camera draws, the game's update still works out the top-down pose but never hands
+-- it to the engine: Camera.set_local_position and set_local_rotation do nothing while it runs, so each
+-- frame places the drawn camera once. With both poses written every frame, the first run in the game
+-- (2026-11-11) flickered between the top-down and the shoulder view. The free camera of Obsidian API
+-- and Third Person Camera both write one pose a frame.
+--
 -- Movement follows the view: the game turns the movement keys and the left stick by
 -- CameraManager.follow_spin, the top-down camera's. CameraManager.follow_spin itself stays as the game
 -- has it, because Obsidian API's bots (and the game's leash) turn their own movement by it in the same
@@ -23,6 +29,7 @@ M.view = { yaw = nil, pitch = 0, side = 1 }
 M.input = nil         -- the local player's input this frame (from InputComponent.update_masters)
 M.frame = 0
 M.warned = {}
+M.dropped = 0         -- lines logged when the view went back to top-down, at most 20 a launch
 
 local smooth = { pivot = nil, length = nil, aim = 0, target = nil }
 local saved_near = nil
@@ -173,11 +180,35 @@ function M.release(env, cm)
 	for _, fn in ipairs(env.on_release) do pcall(fn, cm) end
 end
 
+local function quiet() end
+
+-- The game's camera update with the two calls that place the drawn camera left out.
+function M.quiet_update(original, self, dt, ...)
+	local C = g("Camera")
+	if type(C) ~= "table" then return original(self, dt, ...) end
+	return scoped.swap(C, "set_local_position", quiet, scoped.swap, C, "set_local_rotation", quiet, original, self, dt, ...)
+end
+
+-- The top-down pose on the drawn camera, for a frame where the game's update was kept quiet and the
+-- shoulder camera then stopped.
+function M.game_pose(cm)
+	local C, V3A, QA = g("Camera"), g("Vector3Aux"), g("QuaternionAux")
+	local cam, cam_unit = cm.viewport:get_camera(), cm.viewport.camera_unit
+	C.set_local_position(cam, cam_unit, V3A.unbox(cm.position))
+	C.set_local_rotation(cam, cam_unit, QA.unbox(cm.rotation))
+	local world, proxy = world_of(cm)
+	if cm.viewport:is_active() and proxy:is_active() then g("World").update_unit(world, cam_unit) end
+end
+
 -- One frame of the shoulder camera, after the game's own update.
 function M.drive(env, cm, dt)
 	local state, config = env.state, env.config
 	local why = M.blocked(env, cm)
 	if why then
+		if state.active and M.dropped < 20 then
+			M.dropped = M.dropped + 1
+			env.log("Integrated Third Person: top-down view (" .. why .. ")")
+		end
 		if why == "tpc" and not M.warned.tpc then
 			M.warned.tpc = true
 			obsidian.toast("Integrated Third Person stays off: Third Person Camera is installed.", 8)
@@ -374,16 +405,25 @@ function M.start(env)
 	end, env.VIEW)
 
 	obsidian.hook("CameraManager", "update", function(original, self, dt, ...)
-		local r = scoped.pack(original(self, dt, ...))
+		-- The shoulder camera of the last frame goes on unless something stops it in this one.
+		local asked, why = pcall(M.blocked, env, self)
+		local still = state.active and asked and why == nil
+		local r
+		if still then
+			r = scoped.pack(M.quiet_update(original, self, dt, ...))
+		else
+			r = scoped.pack(original(self, dt, ...))
+		end
 		M.frame = M.frame + 1
-		local ok, err = pcall(M.drive, env, self, dt)
+		local ok, drove = pcall(M.drive, env, self, dt)
 		if not ok then
 			if not M.warned.drive then
 				M.warned.drive = true
-				env.log("Integrated Third Person: camera stopped: " .. tostring(err))
+				env.log("Integrated Third Person: camera stopped: " .. tostring(drove))
 			end
 			pcall(M.release, env, self)
 		end
+		if still and not (ok and drove) then pcall(M.game_pose, self) end
 		return unpack(r, 1, r.n)
 	end, env.VIEW)
 

@@ -188,6 +188,53 @@ return {
 		E.remove()
 	end },
 
+	{ "the game places the drawn camera only while the top-down view is on", function()
+		local e, env = started()
+		local masters = E.player(e, "me")
+		local input, update = E.hook("InputComponent", "update_masters"), E.hook("CameraManager", "update")
+		local reached = {}
+		local function game()
+			e.calls.set_local_position = nil
+			Camera.set_local_position("camera", "camera_unit", "top-down")
+			reached[#reached + 1] = e.calls.set_local_position ~= nil
+		end
+		local function step()
+			input(function() end, {}, masters, 0.016)
+			update(game, CameraManager, 0.016)
+		end
+		step() step() step()
+		eq(reached[1], true, "first frame: the game still places the camera")
+		eq(reached[2], false, "then the game's pose stays out of the engine")
+		eq(reached[3], false, "every frame after")
+		eq(env.state.active, true, "shoulder camera on")
+		eq(type(e.calls.set_local_position[3]), "table", "the shoulder pose is the one written")
+		eq(rawget(Camera, "set_local_position"), nil, "Camera put back after the game's update")
+		KEYS.toggle_view.fn()
+		step()
+		eq(reached[4], true, "toggled off: the game places the camera again")
+		eq(env.state.active, false, "off")
+		E.remove()
+	end },
+
+	{ "a failing frame puts the top-down pose back on the camera", function()
+		local e, env = started()
+		local masters = E.player(e, "me")
+		frame(e, env, masters)
+		frame(e, env, masters)
+		eq(env.state.active, true)
+		local cam = obsidian.module("src/camera")
+		local drive = cam.drive
+		cam.drive = function() error("broken frame") end
+		e.calls.set_local_position = nil
+		frame(e, env, masters)
+		cam.drive = drive
+		eq(env.state.active, false, "released")
+		local pos = e.calls.set_local_position and e.calls.set_local_position[3]
+		assert(pos, "a pose was written")
+		eq(pos.x .. "," .. pos.y .. "," .. pos.z, "0,-10,17", "the game's top-down pose")
+		E.remove()
+	end },
+
 	{ "two players on one computer keep the shared top-down view", function()
 		local e, env = started()
 		local masters = E.player(e, "me")
