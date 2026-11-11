@@ -1,7 +1,7 @@
 {
   "obsidian": 1,
   "id": "alomare.integratedthirdperson",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "name": {
     "en": "Integrated Third Person"
   },
@@ -12,6 +12,7 @@
     "Alomare",
     "yukiorsrs"
   ],
+  "source": "https://github.com/Alomare/HD1-IntegratedThirdPerson",
   "scope": "session",
   "parts": [
     {
