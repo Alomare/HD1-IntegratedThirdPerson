@@ -61,7 +61,7 @@ Parts need Obsidian 2.0.0 or later. An older Obsidian treats the whole mod as a 
 - **Custom Crosshair** draws the crosshair in place of the plain one built in here.
 - **Enhanced Visuals** loads after this mod and brings the same sky fix.
 - **Photo Mode** takes the camera while open; third person steps aside until it closes.
-- **Better HUD** hides enemy bars out of view while third person is on, instead of pinning them to the edge of the screen.
+- **Better HUD** hides enemy bars out of view while third person is on, instead of pinning them to the edge of the screen, sets them a little lower, and moves the ammo circle to a fixed spot on the side away from the camera shoulder.
 - **Third Person Camera**: the two mods can't run together. With Third Person Camera installed, this mod stays off and says so.
 
 Mods built on Obsidian API keep working: other mods can ask `obsidian.import("alomare.integratedthirdperson")` for `active()`, `crosshair()` and `shoulder()` (1 for the right shoulder, -1 for the left, nil in the top-down view).
