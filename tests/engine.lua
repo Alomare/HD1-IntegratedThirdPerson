@@ -57,6 +57,14 @@ function E.install()
 				if e.hit and e.hit <= length then return true, E.V3(), e.hit end
 				return false
 			end
+			if mode == "all" then
+				-- Hits as the game answers them: { position, distance, normal, actor }, in any order.
+				local list = {}
+				for _, h in ipairs(e.aim_hits or (e.aim_hit and { e.aim_hit }) or {}) do
+					list[#list + 1] = { E.V3(h.pos.x, h.pos.y, h.pos.z), h.distance or 10, E.V3(), h.unit }
+				end
+				return #list > 0 and list or nil
+			end
 			if e.aim_hit then return true, E.V3(e.aim_hit.pos.x, e.aim_hit.pos.y, e.aim_hit.pos.z), 10, nil, e.aim_hit.unit end
 			return false
 		end,

@@ -7,8 +7,11 @@ local M = {}
 
 M.PITCH_MIN, M.PITCH_MAX = -65, 55
 M.START_PITCH = -8        -- a new view looks a little down
-M.FOOT_HEIGHT = 1.5        -- the point the camera turns about, above the feet
+M.FOOT_HEIGHT = 1.75       -- the point the camera turns about, above the feet
 M.SHOULDER = 0.65          -- metres the camera sits to the side on foot
+M.MECH_SHOULDER = 1.3      -- metres the camera sits to the side of a mech
+M.VEHICLE_SIDE_DROP = 0.6  -- metres a vehicle camera comes down when it sits to the side instead of the middle
+M.DIVE_DROP = 0.7          -- metres the pivot comes down during a dive, toward the Helldiver on the ground
 M.AIM_DISTANCE = 0.5       -- share of the distance kept while the aim button is held
 M.AIM_FOV = 0.7            -- share of the field of view kept while aiming
 M.MOUSE_RATE = 0.12        -- degrees per count of the mouse, at look speed 1
@@ -165,21 +168,53 @@ end
 
 -- The camera's distance, field of view and side offset for this frame. opts: distance, fov (degrees),
 -- side (1 right, -1 left, anything between while the shoulder swaps), aim (0 to 1, how far into the aim
--- zoom), dive (0 to 1, how far into the dive close-up), vehicle (no shoulder offset).
+-- zoom), dive (0 to 1, how far into the dive close-up), vehicle (the vehicle kind, nil on foot: in a
+-- vehicle, side is -1 left, 0 middle, 1 right, or between while it moves).
 function M.lens(opts)
 	local aim = clamp(opts.aim or 0, 0, 1)
 	local dive = clamp(opts.dive or 0, 0, 1)
 	local distance = opts.distance * (1 + (M.AIM_DISTANCE - 1) * aim) * (1 + (M.DIVE_DISTANCE - 1) * dive)
 	local fov = opts.fov * (1 + (M.AIM_FOV - 1) * aim)
-	local side = 0
-	if not opts.vehicle then side = (opts.side or 1) * M.SHOULDER * (1 + 0.15 * aim) end
+	local side
+	if opts.vehicle then
+		side = (opts.side or 0) * (opts.vehicle == "exosuit" and M.MECH_SHOULDER or M.SHOULDER * 1.5)
+	else
+		side = (opts.side or 1) * M.SHOULDER * (1 + 0.15 * aim)
+	end
 	return distance, fov, side
 end
 
--- The pivot's height above the unit it follows.
-function M.height(kind)
-	if not kind then return M.FOOT_HEIGHT end
-	return M.VEHICLE_HEIGHT[kind] or M.VEHICLE_HEIGHT_DEFAULT
+-- The pivot's height above the unit it follows. side: in a vehicle, how far the camera sits to the side
+-- (0 middle, 1 fully to a side), which brings it down a little. dive: 0 to 1, how far into a dive.
+function M.height(kind, side, dive)
+	if not kind then return M.FOOT_HEIGHT - M.DIVE_DROP * clamp(dive or 0, 0, 1) end
+	local h = M.VEHICLE_HEIGHT[kind] or M.VEHICLE_HEIGHT_DEFAULT
+	return h - M.VEHICLE_SIDE_DROP * clamp(math.abs(side or 0), 0, 1)
+end
+
+-- The next camera place in a vehicle when the swap key is pressed: left, middle, right, then left again.
+function M.next_vehicle_side(side)
+	if side < 0 then return 0 end
+	if side == 0 then return 1 end
+	return -1
+end
+
+-- Where a vehicle camera starts: a mech beside the on-foot shoulder, every other vehicle in the middle.
+function M.vehicle_side(kind, shoulder)
+	if kind == "exosuit" then return shoulder < 0 and -1 or 1 end
+	return 0
+end
+
+-- The way a vehicle gun fires: the gun's own heading (it turns slower than the view), raised or lowered
+-- to meet the height of the crosshair point. Answers nil when the point is closer than 1.5 m.
+function M.gun_dir(origin, point, forward)
+	local fx, fy = forward.x, forward.y
+	local fl = math.sqrt(fx * fx + fy * fy)
+	if fl < 1e-6 then return nil end
+	local dx, dy = point.x - origin.x, point.y - origin.y
+	local along = (dx * fx + dy * fy) / fl
+	if along < 1.5 then return nil end
+	return M.normalize({ x = fx / fl, y = fy / fl, z = (point.z - origin.z) / along })
 end
 
 -- How far along the camera's line the crosshair ray starts: past the pivot, so the Helldiver's own body

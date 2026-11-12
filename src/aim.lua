@@ -20,25 +20,42 @@ local function g(name) return rawget(_G, name) end
 
 M.RANGE = 300 -- metres the crosshair ray reaches
 
--- The crosshair point: the first thing along the view past the pivot that isn't this player's own
--- body or vehicle, or the far end of the ray.
+-- Whether a unit hit by the crosshair ray belongs to this player: the body, the vehicle, or something the
+-- Helldiver carries (a backpack such as the shield generator pack, whose shield surrounds the body).
+local function own_hit(unit, view)
+	if unit == nil then return false end
+	if unit == view.avatar or unit == view.target then return true end
+	local EA = g("EntityAux")
+	local ok, wielder = pcall(function()
+		if EA and EA.has_component(unit, "equipment") then return EA.state(unit, "equipment").wielder end
+		return nil
+	end)
+	return ok and wielder ~= nil and (wielder == view.avatar or wielder == view.target)
+end
+
+-- The crosshair point: the first thing along the view past the pivot that isn't this player's own body,
+-- vehicle or gear, or the far end of the ray. Every hit along the ray is asked for at once: the ray
+-- starts inside a shield bubble when the Helldiver carries one, and a hit at the start (a shape the ray
+-- starts in) doesn't count either.
 function M.find_point(view)
 	local PW, V3, W, Actor = g("PhysicsWorld"), g("Vector3"), g("World"), g("Actor")
 	local f = view.forward
 	local start = rig.add(view.position, f, rig.ray_start(view.position, f, view.pivot))
 	local pw = W.physics_world(view.world)
-	local left = M.RANGE
-	for _ = 1, 4 do
-		local hit, pos, distance, _, actor = PW.immediate_raycast(pw, V3(start.x, start.y, start.z), V3(f.x, f.y, f.z), left,
-			"closest", "collision_filter", "damage_ray")
-		if not hit then break end
-		local unit = actor and Actor and Actor.unit(actor)
-		if unit ~= view.avatar and unit ~= view.target then return { x = pos.x, y = pos.y, z = pos.z }, true end
-		local step = (type(distance) == "number" and distance or 0) + 0.05
-		start, left = rig.add(start, f, step), left - step
-		if left <= 0 then break end
+	local hits = PW.immediate_raycast(pw, V3(start.x, start.y, start.z), V3(f.x, f.y, f.z), M.RANGE,
+		"all", "collision_filter", "damage_ray")
+	local best, best_distance = nil, math.huge
+	if type(hits) == "table" then
+		for _, h in ipairs(hits) do
+			local pos, distance, actor = h[1], h[2], h[4]
+			if pos and type(distance) == "number" and distance > 0.05 and distance < best_distance then
+				local unit = actor and Actor and Actor.unit(actor)
+				if not own_hit(unit, view) then best, best_distance = pos, distance end
+			end
+		end
 	end
-	return rig.add(start, f, left), false
+	if best then return { x = best.x, y = best.y, z = best.z }, true end
+	return rig.add(start, f, M.RANGE), false
 end
 
 -- Where the crosshair is drawn: the middle of the view, in pixels from the bottom left of the window.
@@ -115,7 +132,11 @@ function M.collect(slaves, view, point, quaternion_forward)
 					local o = Q.rotate(rot, V3A.unbox(st.ray_source_offset))
 					origin = { x = p.x + o.x, y = p.y + o.y, z = p.z + o.z }
 				end
-				local dir = rig.shot_dir(origin, point, { x = f.x, y = f.y, z = 0 })
+				-- A vehicle gun turns slower than the view: it fires the way it points, at the height of the
+				-- crosshair point. On foot the shot goes straight to the crosshair point.
+				local dir
+				if view.vehicle then dir = rig.gun_dir(origin, point, f)
+				else dir = rig.shot_dir(origin, point, { x = f.x, y = f.y, z = 0 }) end
 				if dir then list[#list + 1] = { f = { x = f.x, y = f.y, z = f.z }, dir = dir } end
 			end
 		end

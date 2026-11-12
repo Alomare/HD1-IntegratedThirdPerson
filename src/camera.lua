@@ -26,6 +26,10 @@ local function g(name) return rawget(_G, name) end
 -- What stops the view, by reason, for tests and the log. Each is a function of (cm).
 M.enabled = true      -- the toggle key
 M.view = { yaw = nil, pitch = 0, side = 1 }
+-- The vehicle the camera follows and where it sits there: side -1 left, 0 middle, 1 right. The place
+-- picked with the swap key is kept for each vehicle kind until the game closes.
+M.ride = { target = nil, kind = nil, side = 0 }
+M.vehicle_sides = {}
 M.input = nil         -- the local player's input this frame (from InputComponent.update_masters)
 M.frame = 0
 M.warned = {}
@@ -176,6 +180,7 @@ function M.release(env, cm)
 	env.view = nil
 	smooth.pivot, smooth.length, smooth.aim, smooth.target, smooth.side, smooth.dive = nil, nil, 0, nil, nil, 0
 	M.view.yaw = nil
+	M.ride.target, M.ride.kind = nil, nil
 	if type(cm) == "table" and cm.viewport then
 		pcall(function()
 			local C = g("Camera")
@@ -260,18 +265,32 @@ function M.drive(env, cm, dt)
 	smooth.aim = rig.ease(smooth.aim, (input.aiming and not kind) and 1 or 0, 12, dt)
 	state.aiming = input.aiming and not kind and true or false
 	-- The shoulder swap and the dive close-up ease in, so neither jumps.
-	smooth.side = smooth.side and rig.ease(smooth.side, view.side, rig.SWAP_RATE, dt) or view.side
+	-- In a vehicle the camera sits left, in the middle or right (M.ride), on foot over a shoulder.
+	if kind then
+		if M.ride.target ~= target then
+			M.ride.target, M.ride.kind = target, kind
+			M.ride.side = M.vehicle_sides[kind] or rig.vehicle_side(kind, view.side)
+		end
+	else
+		M.ride.target, M.ride.kind = nil, nil
+	end
+	local wanted_side = kind and M.ride.side or view.side
+	smooth.side = smooth.side and rig.ease(smooth.side, wanted_side, rig.SWAP_RATE, dt) or wanted_side
 	local diving = not kind and config.get("dive_camera") ~= false and M.diving(avatar)
 	smooth.dive = rig.ease(smooth.dive, diving and 1 or 0, diving and rig.DIVE_IN or rig.DIVE_OUT, dt)
 
-	-- Pivot and lens.
+	-- Pivot and lens. The ship has a distance of its own: the bridge is small.
 	local p = U.world_position(target, 0)
-	local want = { x = p.x, y = p.y, z = p.z + rig.height(kind) }
+	local want = { x = p.x, y = p.y, z = p.z + rig.height(kind, smooth.side, smooth.dive) }
 	smooth.pivot = rig.follow_pivot(smooth.pivot, want, dt)
+	local distance
+	if kind then distance = config.get("vehicle_distance") or 7
+	elseif cm.state == "follow_menu" then distance = config.get("ship_distance") or 1
+	else distance = config.get("foot_distance") or 4 end
 	local distance, fov, side = rig.lens({
-		distance = kind and (config.get("vehicle_distance") or 7) or (config.get("foot_distance") or 3),
-		fov = kind and (config.get("vehicle_fov") or 75) or (config.get("foot_fov") or 70),
-		side = smooth.side, aim = smooth.aim, dive = smooth.dive, vehicle = kind ~= nil })
+		distance = distance,
+		fov = kind and (config.get("vehicle_fov") or 70) or (config.get("foot_fov") or 70),
+		side = smooth.side, aim = smooth.aim, dive = smooth.dive, vehicle = kind })
 	local at, dir, full = rig.place(smooth.pivot, view.yaw, view.pitch, distance, side)
 
 	-- Walls and rocks pull the camera in.
@@ -452,7 +471,13 @@ function M.start(env)
 	end, env.KEY_VIEW)
 
 	obsidian.keybind("swap_shoulder", function()
-		if not state.active or state.vehicle then return end
+		if not state.active then return end
+		if state.vehicle then
+			if not M.ride.kind then return end
+			M.ride.side = rig.next_vehicle_side(M.ride.side)
+			M.vehicle_sides[M.ride.kind] = M.ride.side
+			return
+		end
 		M.view.side = -M.view.side
 	end, env.KEY_VIEW)
 end

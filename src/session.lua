@@ -1,4 +1,4 @@
--- The two session parts: max weapon range and far enemy detection.
+-- The session parts: max weapon range, far enemy detection and free movement.
 --
 -- Both change the shared game, so each hook is registered with the options of the part. In a lobby
 -- that isn't cleared the loader calls only the original, which is why every change here is made
@@ -156,9 +156,50 @@ local function start_enemy_detection(env)
 	end, opts)
 end
 
+-- Free movement (part free_movement) ---------------------------------------------------------------
+
+-- The game keeps every Helldiver and vehicle with keep_inside_screen on the shared top-down screen
+-- (MoverComponent.update_masters slows movement toward the edge of CameraManager's frustum). While
+-- third person steers the view, the movers of this player's avatar and vehicle run that update with
+-- keep_inside_screen off, and come out counted as inside the screen, so the downed timer for a
+-- Helldiver off screen never starts on them. The flag goes back right after the call.
+function M.unleashed(masters, units, fn, ...)
+	local kept
+	if type(masters) == "table" then
+		for unit in pairs(units) do
+			local context = masters[unit]
+			local state = type(context) == "table" and context.state
+			if type(state) == "table" and state.keep_inside_screen then
+				kept = kept or {}
+				kept[#kept + 1] = state
+				state.keep_inside_screen = false
+			end
+		end
+	end
+	if not kept then return fn(...) end
+	local results = { pcall(fn, ...) }
+	for _, state in ipairs(kept) do
+		state.keep_inside_screen = true
+		state.is_inside_screen = true
+	end
+	if not results[1] then error(results[2], 0) end
+	return unpack(results, 2, table.maxn(results))
+end
+
+local function start_free_movement(env)
+	obsidian.hook("MoverComponent", "update_masters", function(original, self, masters, ...)
+		local view = env.view
+		if not (env.state and env.state.active and view and view.avatar) then return original(self, masters, ...) end
+		local units = { [view.avatar] = true }
+		if view.target then units[view.target] = true end
+		return M.unleashed(masters, units, original, self, masters, ...)
+	end, env.part("free_movement"))
+end
+
 function M.start(env)
 	if env.config.get("max_weapon_range") ~= false then start_weapon_range(env) end
 	if env.config.get("far_detection") ~= false then start_enemy_detection(env) end
+	if env.config.get("free_movement") ~= false then start_free_movement(env) end
 end
 
 return M

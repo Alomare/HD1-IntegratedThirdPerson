@@ -57,8 +57,20 @@ return {
 		eq(d0, 4) eq(f0, 70) near(s0, r.SHOULDER)
 		near(d1, 4 * r.AIM_DISTANCE) near(f1, 70 * r.AIM_FOV)
 		assert(s1 < 0, "left shoulder")
-		local _, _, sv = r.lens({ distance = 7, fov = 75, side = 1, vehicle = true })
-		eq(sv, 0, "no shoulder in a vehicle")
+		local _, _, sm = r.lens({ distance = 7, fov = 70, side = 1, vehicle = "exosuit" })
+		near(sm, r.MECH_SHOULDER, "a mech camera sits farther to the side")
+		local _, _, sv = r.lens({ distance = 7, fov = 70, side = 0, vehicle = "apc" })
+		eq(sv, 0, "middle")
+		assert(r.height("apc", 1) < r.height("apc", 0), "beside a vehicle the camera comes down")
+		assert(r.height(nil, nil, 1) < r.height(), "a dive brings the pivot down")
+	end },
+
+	{ "in a vehicle the swap key goes left, middle, right", function()
+		local r = rig()
+		eq(r.next_vehicle_side(-1), 0) eq(r.next_vehicle_side(0), 1) eq(r.next_vehicle_side(1), -1)
+		eq(r.vehicle_side("exosuit", -1), -1, "a mech starts on the on-foot shoulder")
+		eq(r.vehicle_side("exosuit", 1), 1)
+		eq(r.vehicle_side("apc", 1), 0, "other vehicles start in the middle")
 	end },
 
 	{ "collision pulls in at once and eases back out", function()
@@ -279,13 +291,15 @@ return {
 		end
 		for _ = 1, 30 do frame(e, env, masters, 0.05) end
 		local before = back()
-		near(before, 3, "the on-foot distance", 1e-3)
+		near(before, 4, "the on-foot distance", 1e-3)
+		local high = env.view.pivot.z
 		e.units.me.health.is_dodging = true
 		frame(e, env, masters, 0.05)
 		local first = back()
 		assert(first < before and first > before * rig().DIVE_DISTANCE + 0.1, "on the way in, not there at once: " .. first)
 		for _ = 1, 20 do frame(e, env, masters, 0.05) end
 		near(back(), before * rig().DIVE_DISTANCE, "close in", 1e-2)
+		near(env.view.pivot.z, high - rig().DIVE_DROP, "down toward the Helldiver", 1e-2)
 		e.units.me.health.is_dodging = false
 		frame(e, env, masters, 0.05)
 		assert(back() < before * 0.8, "backs out more slowly than it came in: " .. back())
@@ -402,8 +416,16 @@ return {
 		frame(e, env, masters)
 		eq(env.state.vehicle, true)
 		local pos = e.calls.set_local_position[3]
-		local want = rig().place({ x = 0, y = 0, z = rig().height("exosuit") }, 0, rig().START_PITCH, 8, 0)
-		near(pos.x, 0, "centred", 1e-9) near(pos.y, want.y, "vehicle distance", 1e-6) near(pos.z, want.z, "mech height", 1e-6)
+		local want = rig().place({ x = 0, y = 0, z = rig().height("exosuit", 1) }, 0, rig().START_PITCH, 8, rig().MECH_SHOULDER)
+		near(pos.x, want.x, "beside the right shoulder", 1e-6) near(pos.y, want.y, "vehicle distance", 1e-6)
+		near(pos.z, want.z, "mech height", 1e-6)
+		KEYS.swap_shoulder.fn()
+		eq(obsidian.module("src/camera").ride.side, -1, "right to left")
+		KEYS.swap_shoulder.fn()
+		eq(obsidian.module("src/camera").ride.side, 0, "left to the middle")
+		for _ = 1, 60 do frame(e, env, masters) end
+		pos = e.calls.set_local_position[3]
+		near(pos.x, 0, "middle", 1e-3)
 		near(e.calls.set_vertical_fov[2], math.rad(80), "vehicle fov")
 		-- Driving reads the movement back through the same yaw.
 		local seen = nil

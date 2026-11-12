@@ -146,4 +146,27 @@ return {
 		eq(s.far_sight("e", state("gone"), settings, 5), false, "dead target")
 		eq(s.far_sight("e", state("near", { patroling = false }), settings, 5), false, "not a patrol")
 	end },
+
+	{ "free movement lifts the screen leash of this player only, during the mover update", function()
+		local s = session()
+		local env = env_with({ free_movement = true })
+		env.state = { active = true }
+		env.view = { avatar = "me", target = "me" }
+		s.start(env)
+		local hook = hooks_by_method()["MoverComponent.update_masters"]
+		eq(hook.opts.part, "free_movement")
+		local masters = {
+			me = { state = { keep_inside_screen = true, is_inside_screen = false } },
+			friend = { state = { keep_inside_screen = true, is_inside_screen = false } },
+		}
+		local during = {}
+		hook.fn(function(_, m) during.me, during.friend = m.me.state.keep_inside_screen, m.friend.state.keep_inside_screen end,
+			{}, masters, 0.016)
+		eq(during.me, false, "own leash off") eq(during.friend, true, "others keep theirs")
+		eq(masters.me.state.keep_inside_screen, true, "given back")
+		eq(masters.me.state.is_inside_screen, true, "counted inside the screen")
+		env.state.active = false
+		hook.fn(function(_, m) during.me = m.me.state.keep_inside_screen end, {}, masters, 0.016)
+		eq(during.me, true, "top-down view: the leash stays")
+	end },
 }

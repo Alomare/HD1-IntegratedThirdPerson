@@ -28,17 +28,37 @@ return {
 		eq(env.state.crosshair.x, 960) eq(env.state.crosshair.y, 540)
 		-- Only the own body on the line: the point is the far end of the ray.
 		e.aim_hit = { pos = { x = 0, y = 2, z = 1 }, unit = "me" }
-		local calls = 0
-		local cast = PhysicsWorld.immediate_raycast
-		PhysicsWorld.immediate_raycast = function(...)
-			local args = { ... }
-			if args[6] == "collision_filter" then calls = calls + 1 if calls > 1 then return false end end
-			return cast(...)
-		end
 		frame(e, env, masters)
 		eq(env.state.aim_hit, false, "own body skipped")
 		assert(env.state.aim_point.y > 200, "far end")
 		E.remove()
+	end },
+
+	{ "a carried shield doesn't stop the crosshair ray", function()
+		local e, env = started()
+		local masters = E.player(e, "me")
+		e.units.pack = { equipment = { wielder = "me" } }
+		e.aim_hit = nil
+		e.aim_hits = {
+			{ pos = { x = 0, y = 40, z = 0 }, distance = 40, unit = "ground" },
+			{ pos = { x = 0, y = 3, z = 1 }, distance = 2.5, unit = "pack" },     -- the shield of the own backpack
+			{ pos = { x = 0, y = 0.6, z = 1 }, distance = 0, unit = "bubble" },  -- a shape the ray starts in
+			{ pos = { x = 0, y = 25, z = 1 }, distance = 25, unit = "rock" },
+		}
+		frame(e, env, masters)
+		eq(env.state.aim_hit, true)
+		eq(env.state.aim_point.y, 25, "the closest hit that isn't own gear or the start")
+		e.aim_hits = nil
+		E.remove()
+	end },
+
+	{ "a vehicle gun fires the way it points, at the height of the crosshair point", function()
+		local r = rig()
+		local d = r.gun_dir({ x = 0, y = 0, z = 2 }, { x = 10, y = 20, z = 12 }, { x = 0, y = 1, z = 0 })
+		near(d.x, 0, "heading of the gun") assert(d.y > 0)
+		near(d.z / d.y, 0.5, "rises 10 m over the 20 m along the gun")
+		eq(r.gun_dir({ x = 0, y = 0, z = 0 }, { x = 0, y = 1, z = 0 }, { x = 0, y = 1, z = 0 }), nil, "too close")
+		eq(r.gun_dir({ x = 0, y = 0, z = 0 }, { x = 0, y = -20, z = 0 }, { x = 0, y = 1, z = 0 }), nil, "behind the gun")
 	end },
 
 	{ "ray start sits past the pivot", function()

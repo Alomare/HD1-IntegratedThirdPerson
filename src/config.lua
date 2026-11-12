@@ -30,7 +30,10 @@ M.set = set
 local ROWS = {
 	{ kind = "number", id = "foot_distance", min = 1, max = 10, step = 0.5, unit = " m",
 		label = { en = "On-foot camera distance" },
-		info = { en = "Meters between the camera and the Helldiver on foot." } },
+		info = { en = "Meters between the camera and the Helldiver on foot in a mission." } },
+	{ kind = "number", id = "ship_distance", min = 0.5, max = 10, step = 0.5, unit = " m",
+		label = { en = "Ship camera distance" },
+		info = { en = "Meters between the camera and the Helldiver on the Super Destroyer." } },
 	{ kind = "number", id = "foot_fov", min = 40, max = 110, step = 1, unit = "",
 		label = { en = "On-foot field of view" },
 		info = { en = "Vertical field of view on foot. Aiming narrows it." } },

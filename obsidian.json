@@ -1,7 +1,7 @@
 {
   "obsidian": 1,
   "id": "alomare.integratedthirdperson",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "name": {
     "en": "Integrated Third Person"
   },
@@ -34,6 +34,13 @@
       "option": "far_detection",
       "name": { "en": "Far enemy detection" },
       "description": { "en": "Enemies notice and chase the squad from much farther away. Off in lobbies with players who don't run it." }
+    },
+    {
+      "id": "free_movement",
+      "scope": "session",
+      "option": "free_movement",
+      "name": { "en": "Free movement" },
+      "description": { "en": "In third person, the Helldiver can leave the shared top-down screen. Off in lobbies with players who don't run it." }
     }
   ],
   "entry": "main.lua",
@@ -64,10 +71,14 @@
     { "id": "lobby", "label": { "en": "Lobby-wide changes" } }
   ],
   "options": [
-    { "id": "foot_distance", "type": "number", "default": 3, "min": 1, "max": 10, "step": 0.5,
+    { "id": "foot_distance", "type": "number", "default": 4, "min": 1, "max": 10, "step": 0.5,
       "group": "camera", "part": "view", "scope": "client",
       "label": { "en": "On-foot camera distance (m)" },
-      "description": { "en": "Meters between the camera and the Helldiver on foot." } },
+      "description": { "en": "Meters between the camera and the Helldiver on foot in a mission." } },
+    { "id": "ship_distance", "type": "number", "default": 1, "min": 0.5, "max": 10, "step": 0.5,
+      "group": "camera", "part": "view", "scope": "client",
+      "label": { "en": "Ship camera distance (m)" },
+      "description": { "en": "Meters between the camera and the Helldiver on the Super Destroyer." } },
     { "id": "foot_fov", "type": "number", "default": 70, "min": 40, "max": 110, "step": 1,
       "group": "camera", "part": "view", "scope": "client",
       "label": { "en": "On-foot field of view (degrees)" },
@@ -76,7 +87,7 @@
       "choices": [ { "id": "right", "label": { "en": "Right" } }, { "id": "left", "label": { "en": "Left" } } ],
       "group": "camera", "part": "view", "scope": "client",
       "label": { "en": "Shoulder" },
-      "description": { "en": "The side of the Helldiver the camera sits on. The swap key changes it in a mission." } },
+      "description": { "en": "The side of the Helldiver the camera sits on. The swap key changes it in a mission. A mech camera starts on the same side; in any vehicle the swap key moves the camera from left to the middle to right." } },
     { "id": "look_speed", "type": "number", "default": 1, "min": 0.1, "max": 3, "step": 0.05,
       "group": "camera", "part": "view", "scope": "client",
       "label": { "en": "Look sensitivity" },
@@ -88,12 +99,12 @@
     { "id": "dive_camera", "type": "toggle", "default": true,
       "group": "camera", "part": "view", "scope": "client",
       "label": { "en": "Dive camera" },
-      "description": { "en": "Brings the camera in close during a dive, quickly but smoothly, and eases it back out once the dive ends." } },
+      "description": { "en": "Brings the camera in close and down during a dive, quickly but smoothly, and eases it back out once the dive ends." } },
     { "id": "vehicle_distance", "type": "number", "default": 7, "min": 3, "max": 20, "step": 0.5,
       "group": "vehicles", "part": "view", "scope": "client",
       "label": { "en": "Vehicle camera distance (m)" },
-      "description": { "en": "Meters between the camera and the vehicle: mech, APC, bike and turrets." } },
-    { "id": "vehicle_fov", "type": "number", "default": 75, "min": 40, "max": 120, "step": 1,
+      "description": { "en": "Meters between the camera and the vehicle: mech, APC, bike and turrets. A mech camera sits beside the shoulder, other vehicles in the middle and high." } },
+    { "id": "vehicle_fov", "type": "number", "default": 70, "min": 40, "max": 120, "step": 1,
       "group": "vehicles", "part": "view", "scope": "client",
       "label": { "en": "Vehicle field of view (degrees)" },
       "description": { "en": "Vertical field of view in a vehicle." } },
@@ -137,11 +148,15 @@
     { "id": "far_detection", "type": "toggle", "default": true,
       "group": "lobby", "part": "enemy_detection",
       "label": { "en": "Far enemy detection" },
-      "description": { "en": "Enemies notice and chase the squad from much farther away. Alarm range stays as in the game. Changes the shared game: off in lobbies with players who don't run it." } }
+      "description": { "en": "Enemies notice and chase the squad from much farther away. Alarm range stays as in the game. Changes the shared game: off in lobbies with players who don't run it." } },
+    { "id": "free_movement", "type": "toggle", "default": true,
+      "group": "lobby", "part": "free_movement",
+      "label": { "en": "Free movement" },
+      "description": { "en": "In third person, the Helldiver is no longer held on the shared top-down screen with the squad. Changes the shared game: off in lobbies with players who don't run it." } }
   ],
   "keybinds": [
     { "id": "toggle_view", "default": "f8", "label": { "en": "Switch between third person and the top-down camera" } },
-    { "id": "swap_shoulder", "default": "h", "label": { "en": "Swap the camera shoulder" } }
+    { "id": "swap_shoulder", "default": "h", "label": { "en": "Swap the camera shoulder (in a vehicle: left, middle, right)" } }
   ],
   "resources": [
     { "type": "render_config", "name": "#1a9c33dcd0301dfd", "bundle": "1a9c33dcd0301dfd", "data": "res/render_config.bin", "part": "view", "when": { "fix_sky": true } },
