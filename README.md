@@ -7,12 +7,11 @@ Third Person Camera replaces 28 game scripts, so mods that change the same parts
 ## What it does
 
 - A shoulder camera on foot, in vehicles (mech, APC, bike, turrets and seats) and on the ship, turned with the mouse or the right stick. W moves where the camera looks.
-- Shots, laser sights, grenades and stratagem balls go where the crosshair points, up and down included. Vehicle guns fire the way they point, at the height of the crosshair, so a slow mech turret never shoots sideways.
-- A mech camera sits beside the shoulder, a little farther out than on foot; other vehicles keep the camera in the middle and high. In any vehicle the swap key moves the camera from left to the middle to right.
-- The camera keeps out of rocks and walls, and the aim button brings it closer. A dive brings it in close and down, quickly but smoothly, and it eases back out once the dive ends. The shoulder swap glides across.
+- Shots, laser sights, grenades and stratagem balls go where the crosshair points, up and down included. Vehicle guns fire level, the way they point, so a slow mech turret never shoots sideways, into the ground or into the sky.
+- A mech camera sits beside the mech, farther out to the side and closer than in the middle; other vehicles keep the camera in the middle and high. In any vehicle the swap key moves the camera from left to the middle to right.
+- The camera keeps out of rocks and walls, and the aim button brings it closer, in behind the head, without zooming. A dive brings it in close and down, quickly but smoothly, and it eases back out once the dive ends. The shoulder swap glides across.
 - A longer view: the fog, the far edge of the view and the detail of distant models are pushed out, so far enemies and landmarks show.
 - A sky over the level in the color of the planet fog, in place of the smears past the level.
-- Walls across the open back of the Super Destroyer bridge, which the top-down camera never showed, made from copies of the bridge wall panels.
 - A thin white arc with an arrow around the crosshair for each nearby enemy the Helldiver has a clear line to, since the game was made for a view from above and enemies make little sound. Closer enemies get a stronger mark, enemies with more health a larger one, and marks fade in and out.
 - Hit direction: a bar near the crosshair points toward where a hit came from and fades within 2 seconds. Red when health is lost, yellow when the personal shield takes the hit, white when the vehicle does. A bar for an enemy follows the enemy.
 - Louder footsteps for Helldivers and enemies: each step plays up to four times, so steps out of view are easier to hear. The sound files stay as they are.
@@ -25,8 +24,8 @@ Every option is in Obsidian. The camera distances and fields of view are also in
 
 | Group | Option | Default |
 |---|---|---|
-| Camera on foot | On-foot camera distance (m) | 4 |
-| | Ship camera distance (m) | 1 |
+| Camera on foot | On-foot camera distance (m) | 5 |
+| | Ship camera distance (m) | 2 |
 | | On-foot field of view (degrees) | 70 |
 | | Shoulder | Right |
 | | Look sensitivity | 1 |
@@ -38,9 +37,8 @@ Every option is in Obsidian. The camera distances and fields of view are also in
 | | Indicator range (m) | 35 |
 | | Hit direction | On |
 | | Names above heads | On |
-| View distance, sky and ship | Long view distance | On |
+| View distance and sky | Long view distance | On |
 | | Sky | On (needs a deploy) |
-| | Ship walls | On |
 | Sound | Footsteps | Loudest |
 | Lobby-wide changes | Max weapon range | On |
 | | Far enemy detection | On |
@@ -52,7 +50,7 @@ Keys: **F8** switches between third person and the top-down camera, **H** swaps 
 
 Players on one computer share one screen, which only the top-down camera can show. When a second player joins on the same computer, third person turns off with a message, and it comes back once one player is left.
 
-The mod comes in parts. The camera, aim, view, sky, ship walls, enemy indicators, name cards and footsteps only change what this player sees and hears, and work in any lobby. Three parts change the game the whole lobby shares:
+The mod comes in parts. The camera, aim, view, sky, enemy indicators, name cards and footsteps only change what this player sees and hears, and work in any lobby. Three parts change the game the whole lobby shares:
 
 - **Max weapon range**: every gun, laser and launcher reaches 100 m, the length of the bullet ray in the game. Flamethrowers, arc weapons and melee keep their reach.
 - **Far enemy detection**: enemies keep chasing a player up to 150 m away instead of 80 m, and patrols spot players up to 80 m away and close in. The alarm still needs a player as close as in the game.

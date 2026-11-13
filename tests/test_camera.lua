@@ -22,6 +22,28 @@ local function started(api)
 end
 
 return {
+	{ "the game's screen effects on the camera widen with the view and go back after", function()
+		local e, env = started()
+		local links = {}
+		_G.Matrix4x4 = { identity = function() return {} end, set_element = function(m, r, c, v) m[r .. "," .. c] = v end }
+		World.link_particles = function(_, id, unit, node, m) links[#links + 1] = { id = id, x = m["1,1"], z = m["3,3"] } end
+		CameraManager.camera_particles = {}
+		local add = E.hook("CameraManager", "add_camera_particle")
+		add(function(self, name) self.camera_particles[name] = "fx" .. name end, CameraManager, "alarm", "fx/alarm", true)
+		frame(e, env, E.player(e, "me"))
+		local want = math.tan(math.rad(70) / 2) / math.tan(math.rad(60) / 2)
+		local last = links[#links]
+		eq(last.id, "fxalarm")
+		near(last.z, want, "as much wider as the view", 1e-6)
+		near(last.x, want * (1920 / 1080) / 1.777778, "with the game's own stretch", 1e-4)
+		local n = #links
+		frame(e, env, E.player(e, "me"))
+		eq(#links, n, "linked once while the view keeps its width")
+		obsidian.module("src/camera").release(env, CameraManager)
+		near(links[#links].z, 1, "back to the game's size", 1e-9)
+		E.remove()
+	end },
+
 	{ "rig places the camera behind the pivot and to the shoulder", function()
 		local at, dir, length = rig().place({ x = 0, y = 0, z = 1.5 }, 0, 0, 3, 0.65)
 		near(at.x, 0.65, "x") near(at.y, -3, "y") near(at.z, 1.5, "z")
@@ -55,10 +77,15 @@ return {
 		local d0, f0, s0 = r.lens({ distance = 4, fov = 70, side = 1, aim = 0 })
 		local d1, f1, s1 = r.lens({ distance = 4, fov = 70, side = -1, aim = 1 })
 		eq(d0, 4) eq(f0, 70) near(s0, r.SHOULDER)
-		near(d1, 4 * r.AIM_DISTANCE) near(f1, 70 * r.AIM_FOV)
+		near(d1, 4 * r.AIM_DISTANCE) eq(f1, 70, "aiming doesn't zoom")
 		assert(s1 < 0, "left shoulder")
-		local _, _, sm = r.lens({ distance = 7, fov = 70, side = 1, vehicle = "exosuit" })
+		near(s1, -r.SHOULDER * r.AIM_SHOULDER, "aiming brings the camera in behind the head")
+		assert(r.AIM_SHOULDER < 1)
+		local dm, _, sm = r.lens({ distance = 7, fov = 70, side = 1, vehicle = "exosuit" })
 		near(sm, r.MECH_SHOULDER, "a mech camera sits farther to the side")
+		near(dm, 7 - r.MECH_SIDE_CLOSER, "and closer")
+		local dc = r.lens({ distance = 7, fov = 70, side = 0, vehicle = "exosuit" })
+		near(dc, 7, "in the middle the distance is the option's")
 		local _, _, sv = r.lens({ distance = 7, fov = 70, side = 0, vehicle = "apc" })
 		eq(sv, 0, "middle")
 		assert(r.height("apc", 1) < r.height("apc", 0), "beside a vehicle the camera comes down")
@@ -291,7 +318,7 @@ return {
 		end
 		for _ = 1, 30 do frame(e, env, masters, 0.05) end
 		local before = back()
-		near(before, 4, "the on-foot distance", 1e-3)
+		near(before, 5, "the on-foot distance", 1e-3)
 		local high = env.view.pivot.z
 		e.units.me.health.is_dodging = true
 		frame(e, env, masters, 0.05)
@@ -416,7 +443,7 @@ return {
 		frame(e, env, masters)
 		eq(env.state.vehicle, true)
 		local pos = e.calls.set_local_position[3]
-		local want = rig().place({ x = 0, y = 0, z = rig().height("exosuit", 1) }, 0, rig().START_PITCH, 8, rig().MECH_SHOULDER)
+		local want = rig().place({ x = 0, y = 0, z = rig().height("exosuit", 1) }, 0, rig().START_PITCH, 8 - rig().MECH_SIDE_CLOSER, rig().MECH_SHOULDER)
 		near(pos.x, want.x, "beside the right shoulder", 1e-6) near(pos.y, want.y, "vehicle distance", 1e-6)
 		near(pos.z, want.z, "mech height", 1e-6)
 		KEYS.swap_shoulder.fn()

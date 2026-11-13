@@ -172,6 +172,44 @@ local function world_of(cm)
 	return proxy:get_world(), proxy
 end
 
+-- Screen effects on the camera: the red of an alarm and the like (CameraManager.add_camera_particle,
+-- from the flow callback camera_particles_start). The game links each to the camera unit once, sized
+-- for its own top-down field of view; under the wider shoulder view it covers only the middle of the
+-- screen. While the shoulder view draws, each is linked again, widened by how much wider the view is.
+-- name -> { aspect = the game's own x stretch, scale = the scale it was linked at }
+M.particles = {}
+
+function M.particle_scale(view_fov, game_fov)
+	if type(view_fov) ~= "number" or type(game_fov) ~= "number" or game_fov <= 0 then return 1 end
+	return math.tan(view_fov / 2) / math.tan(game_fov / 2)
+end
+
+local function relink(cm, name, info, scale)
+	local W, M4 = g("World"), g("Matrix4x4")
+	local id = cm.camera_particles and cm.camera_particles[name]
+	if not id then
+		M.particles[name] = nil
+		return
+	end
+	local world = world_of(cm)
+	local m = M4.identity()
+	M4.set_element(m, 1, 1, info.aspect * scale)
+	M4.set_element(m, 3, 3, scale)
+	W.link_particles(world, id, cm.viewport.camera_unit, 0, m, "destroy")
+	info.scale = scale
+end
+
+-- Each frame of the shoulder view: view_fov in radians. scale 1 puts them back as the game had them.
+function M.fit_particles(cm, view_fov)
+	local scale = view_fov and M.particle_scale(view_fov, cm.fov) or 1
+	for name, info in pairs(M.particles) do
+		if math.abs((info.scale or 1) - scale) > 0.005 then
+			local ok = pcall(relink, cm, name, info, scale)
+			if not ok then M.particles[name] = nil end
+		end
+	end
+end
+
 -- Gives the drawn camera back to the game's pose.
 function M.release(env, cm)
 	local state = env.state
@@ -192,6 +230,7 @@ function M.release(env, cm)
 		end)
 	end
 	saved_near = nil
+	if type(cm) == "table" and cm.viewport then pcall(M.fit_particles, cm, nil) end
 	for _, fn in ipairs(env.on_release) do pcall(fn, cm) end
 end
 
@@ -285,8 +324,8 @@ function M.drive(env, cm, dt)
 	smooth.pivot = rig.follow_pivot(smooth.pivot, want, dt)
 	local distance
 	if kind then distance = config.get("vehicle_distance") or 7
-	elseif cm.state == "follow_menu" then distance = config.get("ship_distance") or 1
-	else distance = config.get("foot_distance") or 4 end
+	elseif cm.state == "follow_menu" then distance = config.get("ship_distance") or 2
+	else distance = config.get("foot_distance") or 5 end
 	local distance, fov, side = rig.lens({
 		distance = distance,
 		fov = kind and (config.get("vehicle_fov") or 70) or (config.get("foot_fov") or 70),
@@ -305,6 +344,7 @@ function M.drive(env, cm, dt)
 	C.set_local_position(cam, cam_unit, V3(position.x, position.y, position.z))
 	C.set_local_rotation(cam, cam_unit, rotation)
 	C.set_vertical_fov(cam, math.rad(fov))
+	pcall(M.fit_particles, cm, math.rad(fov))
 	if saved_near == nil then
 		local ok, near = pcall(C.near_range, cam)
 		saved_near = ok and near or 0.1
@@ -383,6 +423,25 @@ function M.start(env)
 	env.config.on_change("shoulder", function(v) M.view.side = v == "left" and -1 or 1 end)
 
 	frustum.install(env)
+
+	-- The screen effects the game puts on the camera, to widen with the view (M.fit_particles).
+	obsidian.hook("CameraManager", "add_camera_particle", function(original, self, name, effect, stretch, ...)
+		local had = type(self) == "table" and type(self.camera_particles) == "table" and self.camera_particles[name]
+		local r = scoped.pack(original(self, name, effect, stretch, ...))
+		if not had and type(self) == "table" and type(self.camera_particles) == "table" and self.camera_particles[name] then
+			local aspect = 1
+			if stretch then
+				local ok, w, h = pcall(function() return self.viewport:window() end)
+				if ok and type(w) == "number" and type(h) == "number" and h > 0 then aspect = (w / h) / 1.777778 end
+			end
+			M.particles[name] = { aspect = aspect, scale = 1 }
+		end
+		return unpack(r, 1, r.n)
+	end, env.VIEW)
+	obsidian.hook("CameraManager", "remove_camera_particle", function(original, self, name, ...)
+		M.particles[name] = nil
+		return original(self, name, ...)
+	end, env.VIEW)
 
 	-- The input this frame is kept for the camera, and the cursor stays hidden.
 	local inside = false

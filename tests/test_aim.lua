@@ -52,11 +52,11 @@ return {
 		E.remove()
 	end },
 
-	{ "a vehicle gun fires the way it points, at the height of the crosshair point", function()
+	{ "a vehicle gun fires level, the way it points", function()
 		local r = rig()
-		local d = r.gun_dir({ x = 0, y = 0, z = 2 }, { x = 10, y = 20, z = 12 }, { x = 0, y = 1, z = 0 })
-		near(d.x, 0, "heading of the gun") assert(d.y > 0)
-		near(d.z / d.y, 0.5, "rises 10 m over the 20 m along the gun")
+		local d = r.gun_dir({ x = 0, y = 0, z = 2 }, { x = 10, y = 20, z = 12 }, { x = 0, y = 1, z = -0.3 })
+		near(d.x, 0, "heading of the gun") near(d.y, 1)
+		eq(d.z, 0, "level, whatever the crosshair height")
 		eq(r.gun_dir({ x = 0, y = 0, z = 0 }, { x = 0, y = 1, z = 0 }, { x = 0, y = 1, z = 0 }), nil, "too close")
 		eq(r.gun_dir({ x = 0, y = 0, z = 0 }, { x = 0, y = -20, z = 0 }, { x = 0, y = 1, z = 0 }), nil, "behind the gun")
 	end },

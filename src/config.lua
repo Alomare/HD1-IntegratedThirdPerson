@@ -36,7 +36,7 @@ local ROWS = {
 		info = { en = "Meters between the camera and the Helldiver on the Super Destroyer." } },
 	{ kind = "number", id = "foot_fov", min = 40, max = 110, step = 1, unit = "",
 		label = { en = "On-foot field of view" },
-		info = { en = "Vertical field of view on foot. Aiming narrows it." } },
+		info = { en = "Vertical field of view on foot." } },
 	{ kind = "number", id = "vehicle_distance", min = 3, max = 20, step = 0.5, unit = " m",
 		label = { en = "Vehicle camera distance" },
 		info = { en = "Meters between the camera and the vehicle." } },
