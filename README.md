@@ -12,7 +12,7 @@ Third Person Camera replaces 28 game scripts, so mods that change the same parts
 - The camera keeps out of rocks and walls, and the aim button brings it closer, in behind the head, without zooming. A dive brings it in close and down, quickly but smoothly, and it eases back out once the dive ends. The shoulder swap glides across.
 - A longer view: the fog, the far edge of the view and the detail of distant models are pushed out, so far enemies and landmarks show.
 - A sky over the level in the color of the planet fog, in place of the smears past the level.
-- A thin white arc with an arrow around the crosshair for each nearby enemy the Helldiver has a clear line to, since the game was made for a view from above and enemies make little sound. Closer enemies get a stronger mark, enemies with more health a larger one, and marks fade in and out.
+- Enemy indicators, since the game was made for a view from above and enemies make little sound: a ring around the crosshair in four segments. The right, back and left segments show faintly while an enemy is within 15 m on that side, and stronger within 7.5 m. The side with the closest enemy within 7.5 m also shows a warning triangle. The ring hides while the game is paused.
 - Hit direction: a bar near the crosshair points toward where a hit came from and fades within 2 seconds. Red when health is lost, yellow when the personal shield takes the hit, white when the vehicle does. A bar for an enemy follows the enemy.
 - Louder footsteps for Helldivers and enemies: each step plays up to four times, so steps out of view are easier to hear. The sound files stay as they are.
 - Player name cards above heads instead of at the feet.
@@ -34,7 +34,7 @@ Every option is in Obsidian. The camera distances and fields of view are also in
 | Camera in vehicles | Vehicle camera distance (m) | 7 |
 | | Vehicle field of view (degrees) | 70 |
 | Indicators and names | Enemy indicators | On |
-| | Indicator range (m) | 35 |
+| | Indicator range (m) | 15 |
 | | Hit direction | On |
 | | Names above heads | On |
 | View distance and sky | Long view distance | On |
