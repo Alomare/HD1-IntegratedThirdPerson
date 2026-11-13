@@ -1,7 +1,7 @@
 # A release: pushing a tag like v1.2.0 packs the mod into a zip and publishes it, and Obsidian offers it as an
 # update to anyone on an older version. The steps are the shared ones for Obsidian mods
 # (Alomare/HD1-LuaModdingSkill, .github/workflows/mod-release.yml): the tag has to match "version" in
-# obsidian.json, the release notes are the file docs/releases/<version>.md and follow the rules for
+# obsidian.json, the release notes are the version's section of CHANGELOG.md and follow the rules for
 # public text, the tests pass, and export-ignore in .gitattributes sets what goes in the zip. A tag with a
 # suffix (v1.2.0-beta.1) makes a prerelease, which Obsidian doesn't offer.
 name: Release
@@ -16,5 +16,3 @@ permissions:
 jobs:
   release:
     uses: Alomare/HD1-LuaModdingSkill/.github/workflows/mod-release.yml@main
-    with:
-      changelog: docs/releases
