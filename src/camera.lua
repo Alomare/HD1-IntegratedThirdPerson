@@ -263,7 +263,7 @@ end
 function M.release(env, cm)
 	local state = env.state
 	if not state.active then return end
-	state.active, state.vehicle, state.aiming, state.crosshair = false, false, false, nil
+	state.active, state.vehicle, state.aiming, state.firing, state.crosshair = false, false, false, false, nil
 	env.view = nil
 	smooth.pivot, smooth.length, smooth.aim, smooth.target, smooth.side, smooth.dive = nil, nil, 0, nil, nil, 0
 	state.dropping = false
@@ -354,6 +354,8 @@ function M.drive(env, cm, dt)
 	end
 	smooth.aim = rig.ease(smooth.aim, (input.aiming and not kind) and 1 or 0, 12, dt)
 	state.aiming = input.aiming and not kind and true or false
+	-- Fire or a throw held: the game shows the aiming cursor for these too.
+	state.firing = (input.fire or input.throw) and true or false
 	-- The shoulder swap and the dive close-up ease in, so neither jumps.
 	-- In a vehicle the camera sits left, in the middle or right (M.ride), on foot over a shoulder.
 	if kind then

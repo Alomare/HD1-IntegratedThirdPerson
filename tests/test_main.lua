@@ -58,10 +58,25 @@ return {
 		eq(export.shoulder(), -1, "the shoulder being moved to")
 		KEYS.swap_shoulder.fn()
 		local c = export.crosshair()
-		eq(c.x, 960) eq(c.y, 540) eq(c.aiming, false) eq(c.vehicle, false)
+		eq(c.x, 960) eq(c.y, 540) eq(c.aiming, false) eq(c.firing, false) eq(c.vehicle, false)
 		eq(export.claim_crosshair("alomare.customcrosshair"), true)
 		local cross = obsidian.module("src/crosshair")
 		eq(cross.visible({ state = { active = true, crosshair = c, claimed_by = "alomare.customcrosshair" } }), false)
+		E.remove()
+	end },
+
+	{ "the crosshair says while fire is held", function()
+		local e, export = boot()
+		local um = E.hook("InputComponent", "update_masters")
+		local update = E.hook("CameraManager", "update")
+		um(function() end, {}, E.player(e, "me", { fire = 1 }), 0.016)
+		update(function() end, CameraManager, 0.016)
+		local c = export.crosshair()
+		eq(c.firing, true, "fire held")
+		eq(c.aiming, false, "not the aim button")
+		um(function() end, {}, E.player(e, "me"), 0.016)
+		update(function() end, CameraManager, 0.016)
+		eq(export.crosshair().firing, false, "fire let go")
 		E.remove()
 	end },
 

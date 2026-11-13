@@ -20,6 +20,7 @@ local state = {
 	active = false,     -- third person is steering the view this frame
 	vehicle = false,    -- the player sits in a vehicle or a turret
 	aiming = false,     -- the aim button is held
+	firing = false,     -- fire or a throw is held
 	crosshair = nil,    -- { x, y } in pixels from the bottom left, where shots go
 	claimed_by = nil,   -- id of a mod that draws the crosshair instead of this one
 }
@@ -53,13 +54,16 @@ for _, name in ipairs({ "src/camera", "src/aim", "src/crosshair", "src/view", "s
 end
 
 -- What other mods get from obsidian.import("alomare.integratedthirdperson").
-local export = { version = "0.4.1" }
+local export = { version = "0.4.2" }
 
--- Where shots go on screen while third person steers the view: { x, y, aiming }, in pixels from the
--- bottom left (the coordinates of obsidian.ui.canvas). nil while the top-down camera is on.
+-- Where shots go on screen while third person steers the view: { x, y, aiming, firing, vehicle }, in
+-- pixels from the bottom left (the coordinates of obsidian.ui.canvas). aiming: the aim button is held;
+-- firing (since 0.4.2): fire or a throw is held, which also brings up the aiming cursor of the game in
+-- the top-down view. nil while the top-down camera is on.
 function export.crosshair()
 	if not state.active or not state.crosshair then return nil end
-	return { x = state.crosshair.x, y = state.crosshair.y, aiming = state.aiming, vehicle = state.vehicle }
+	return { x = state.crosshair.x, y = state.crosshair.y, aiming = state.aiming, firing = state.firing,
+		vehicle = state.vehicle }
 end
 
 -- Another mod draws the crosshair from now on (Custom Crosshair does this). Integrated Third Person
