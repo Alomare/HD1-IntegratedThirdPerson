@@ -103,7 +103,7 @@ local function game()
 	local env = {
 		api = { game = { in_mission = function() return true end, my_unit = function() return "me" end } },
 		config = { get = function(id) return values[id] end, on_change = function(id, fn) listeners[id] = fn end },
-		state = { active = false },
+		state = { active = true },
 		VIEW = { part = "view" },
 		log = function(...) LOGS[#LOGS + 1] = table.concat({ ... }, " ") end,
 	}

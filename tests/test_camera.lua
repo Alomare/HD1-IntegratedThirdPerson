@@ -53,6 +53,22 @@ return {
 		E.remove()
 	end },
 
+	{ "a new body rides its Hellpod before the game reads its input", function()
+		local e, env = started()
+		frame(e, env, E.player(e, "me"), 0.05)
+		-- Dead: the next body drops in, and the game knows it as nobody's yet.
+		e.units.me.alive = false
+		E.player(e, "body2", { position = { x = 5, y = 5, z = 0 } })
+		E.hook("CharacterStateCutscene", "on_enter")(function() end, "body2", {}, nil, { animation = "intro_land", time = 5.4 })
+		local cam = obsidian.module("src/camera")
+		assert(cam.drop, "the ride started for the new body")
+		-- Frames with no input at all from the game, as in the cutscene.
+		for _ = 1, 10 do E.hook("CameraManager", "update")(function() end, CameraManager, 0.05) end
+		eq(env.state.active, true, "the shoulder view stays on for the ride")
+		assert(e.calls.set_local_position[3].z > 20, "on the pod, high up")
+		E.remove()
+	end },
+
 	{ "the Hellpod ride lands by itself, and other cutscenes and players don't start one", function()
 		local pod = obsidian.module("src/pod")
 		local s = pod.new({ x = 0, y = 0, z = 0 })
@@ -75,6 +91,31 @@ return {
 		E.remove()
 	end },
 
+	{ "firing rumbles the view softly and the game's shakes are held to a little", function()
+		local shake = obsidian.module("src/shake")
+		shake.clear()
+		local x, y = shake.offset(0.016, 1)
+		eq(x, 0) eq(y, 0)
+		shake.fired(false)
+		local most = 0
+		for _ = 1, 5 do
+			x, y = shake.offset(0.016, 1)
+			most = math.max(most, math.sqrt(x * x + y * y))
+		end
+		assert(most > 0 and most <= shake.FIRE.amp * 1.5, "a soft rumble: " .. most)
+		for _ = 1, 30 do shake.offset(0.016, 1) end
+		x, y = shake.offset(0.016, 1)
+		eq(x, 0, "gone after the last shot") eq(y, 0)
+		shake.fired(true)
+		shake.offset(0.004, 1)
+		eq(shake.fire.vehicle, true)
+		shake.clear()
+		shake.game.x, shake.game.y = 3, 4
+		x, y = shake.offset(0.016, 1)
+		near(math.sqrt(x * x + y * y), shake.GAME_MOST, "a big blast held to a little", 1e-9)
+		shake.clear()
+	end },
+
 	{ "the game's shakes reach the shoulder view as much as the option says", function()
 		local shake = obsidian.module("src/shake")
 		shake.clear()
@@ -90,12 +131,12 @@ return {
 		local function shaken(level)
 			OPTIONS.camera_shake = level
 			E.hook("InputComponent", "update_masters")(function() end, {}, masters, 0.016)
-			update(function() shaker(function() return { x = 0.4, y = 0 } end, cm_shaker, 0.016) end, CameraManager, 0.016)
+			update(function() shaker(function() return { x = 0.2, y = 0 } end, cm_shaker, 0.016) end, CameraManager, 0.016)
 			return e.calls.set_local_position[3].x - sx
 		end
 		near(shaken("off"), 0, "off", 1e-9)
-		near(shaken("medium"), 0.4 * obsidian.module("src/camera").GAME_SHAKE, "medium: the game's, sized for the near camera", 1e-6)
-		near(shaken("strong"), 0.4 * obsidian.module("src/camera").GAME_SHAKE * shake.LEVEL.strong, "strong", 1e-6)
+		near(shaken("medium"), 0.2 * obsidian.module("src/camera").GAME_SHAKE, "medium: the game's, sized for the near camera", 1e-6)
+		near(shaken("strong"), 0.2 * obsidian.module("src/camera").GAME_SHAKE * shake.LEVEL.strong, "strong", 1e-6)
 		OPTIONS.camera_shake = nil
 		E.remove()
 	end },
@@ -109,7 +150,7 @@ return {
 		local add = E.hook("CameraManager", "add_camera_particle")
 		add(function(self, name) self.camera_particles[name] = "fx" .. name end, CameraManager, "alarm", "fx/alarm", true)
 		frame(e, env, E.player(e, "me"))
-		local want = math.tan(math.rad(70) / 2) / math.tan(math.rad(60) / 2)
+		local want = math.tan(math.rad(70) / 2) / math.tan(math.rad(60) / 2) * obsidian.module("src/camera").PARTICLE_MARGIN
 		local last = links[#links]
 		eq(last.id, "fxalarm")
 		near(last.z, want, "as much wider as the view", 1e-6)

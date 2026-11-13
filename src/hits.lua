@@ -250,7 +250,7 @@ function M.start(env)
 
 	local warned = false
 	obsidian.on_frame(function()
-		if not on then return clear() end
+		if not on or not env.state.active then return clear() end
 		local ok, err = pcall(frame)
 		if not ok then
 			clear()

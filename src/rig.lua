@@ -7,7 +7,7 @@ local M = {}
 
 M.PITCH_MIN, M.PITCH_MAX = -65, 55
 M.START_PITCH = -8        -- a new view looks a little down
-M.FOOT_HEIGHT = 1.95       -- the point the camera turns about, above the feet
+M.FOOT_HEIGHT = 1.85       -- the point the camera turns about, above the feet
 M.SHOULDER = 0.65          -- metres the camera sits to the side on foot
 M.MECH_SHOULDER = 2.0      -- metres the camera sits to the side of a mech
 M.MECH_SIDE_CLOSER = 2.0   -- metres a mech camera comes in when it sits to the side

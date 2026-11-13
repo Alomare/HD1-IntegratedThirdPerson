@@ -288,7 +288,7 @@ function M.start(env)
 	-- An error rests the marks for PAUSE frames (a level tearing down, say) and is logged once.
 	local warned, wait = false, 0
 	obsidian.on_frame(function()
-		if not on then return rest() end
+		if not on or not env.state.active then return rest() end
 		if wait > 0 then
 			wait = wait - 1
 			return

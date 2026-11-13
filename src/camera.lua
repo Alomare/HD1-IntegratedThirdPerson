@@ -89,6 +89,36 @@ function M.local_master(masters, api)
 end
 
 -- Reads what the local player asks of the view this frame, from the input the game is about to use.
+-- While a Hellpod ride is under way and the game reads no input for its Helldiver, a still snapshot for
+-- that Helldiver stands in: nothing pressed, no look.
+function M.riding_input()
+	local drop = M.drop
+	if not (drop and drop.avatar) then return end
+	local input = M.input
+	if input and input.unit == drop.avatar and M.frame - input.frame <= 30 then return end
+	local U = g("Unit")
+	local ok, alive = pcall(U.alive, drop.avatar)
+	if not (ok and alive) then return end
+	M.input = { frame = M.frame, unit = drop.avatar, kbm = input and input.kbm, look = false, fire = false,
+		throw = false, aiming = false, stick = nil, shared = false, dt = input and input.dt, riding = true }
+end
+
+-- Whether a Helldiver entering the drop cutscene is this player's. The game enters it as it makes the
+-- body (CharacterComponent's master setup), before Obsidian API knows the new unit as this player's:
+-- a body of this machine counts when it's the known avatar, or when this player has no living one.
+function M.drop_is_mine(unit, mine, current)
+	if unit == nil then return false end
+	if mine ~= nil and unit == mine then return true end
+	local U = g("Unit")
+	for _, u in ipairs({ mine, current }) do
+		if u ~= nil then
+			local ok, alive = pcall(U.alive, u)
+			if ok and alive then return false end
+		end
+	end
+	return true
+end
+
 -- Answers the snapshot kept in M.input.
 function M.read_input(self, unit, ctx, shared, dt)
 	local st = ctx.state
@@ -132,6 +162,8 @@ function M.blocked(env, cm)
 	end
 	if type(cm) ~= "table" or not cm.viewport then return "no_camera" end
 	if cm.state ~= "follow" and cm.state ~= "follow_menu" then return "state" end
+	-- In the drop cutscene the game reads no input for the new Helldiver: the ride goes on without it.
+	M.riding_input()
 	local input = M.input
 	if not input or M.frame - input.frame > 30 then return "no_input" end
 	if input.shared then return "shared" end
@@ -192,6 +224,9 @@ end
 -- screen. While the shoulder view draws, each is linked again, widened by how much wider the view is.
 -- name -> { aspect = the game's own x stretch, scale = the scale it was linked at }
 M.particles = {}
+-- How far past the edges of the screen the widened ones reach: a full-screen tint drawn a little
+-- bigger than the screen shows no border, and one drawn a little smaller does.
+M.PARTICLE_MARGIN = 1.5
 
 function M.particle_scale(view_fov, game_fov)
 	if type(view_fov) ~= "number" or type(game_fov) ~= "number" or game_fov <= 0 then return 1 end
@@ -215,7 +250,7 @@ end
 
 -- Each frame of the shoulder view: view_fov in radians. scale 1 puts them back as the game had them.
 function M.fit_particles(cm, view_fov)
-	local scale = view_fov and M.particle_scale(view_fov, cm.fov) or 1
+	local scale = view_fov and M.particle_scale(view_fov, cm.fov) * M.PARTICLE_MARGIN or 1
 	for name, info in pairs(M.particles) do
 		if math.abs((info.scale or 1) - scale) > 0.005 then
 			local ok = pcall(relink, cm, name, info, scale)
@@ -550,7 +585,7 @@ function M.start(env)
 			if env.config.get("hellpod_camera") == false then return end
 			local api = env.api
 			local mine = api and api.game and api.game.my_unit and api.game.my_unit()
-			if unit ~= mine and not (M.input and M.input.unit == unit) then return end
+			if not M.drop_is_mine(unit, mine, M.input and not M.input.riding and M.input.unit or nil) then return end
 			local p = g("Unit").world_position(unit, 0)
 			M.drop = pod.new({ x = p.x, y = p.y, z = p.z })
 			M.drop.avatar = unit

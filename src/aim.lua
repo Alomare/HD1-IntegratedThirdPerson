@@ -13,6 +13,7 @@
 --                                          which sets how far a grenade or a stratagem ball flies
 local rig = obsidian.module("src/rig")
 local scoped = obsidian.module("src/scoped")
+local shake = obsidian.module("src/shake")
 
 local M = {}
 
@@ -123,6 +124,8 @@ function M.collect(slaves, view, point, quaternion_forward)
 		local wielder = wielder_of(unit)
 		if wielder and (mine[wielder] or mine[unit]) and U.alive(wielder) then
 			local st = type(ctx) == "table" and (ctx.state or ctx) or {}
+			-- Every weapon component keeps was_firing on its slave while it fires: the camera's rumble.
+			if st.was_firing then shake.fired(view.vehicle) end
 			for _, node in ipairs({ type(st.attach_node) == "number" and st.attach_node or 0, 0 }) do
 				local rot = U.world_rotation(wielder, node)
 				local f = quaternion_forward(rot)
@@ -244,6 +247,7 @@ function M.start(env)
 		if not live() or type(st) ~= "table" then return original(self, unit, st, ...) end
 		local ok, list = pcall(M.collect, { [unit] = { state = st } }, env.view, state.aim_point, g("Quaternion").forward)
 		if not ok or #list == 0 then return original(self, unit, st, ...) end
+		shake.fired(env.view.vehicle)
 		local z = list[1].dir.z
 		if type(st.z_direction) ~= "number" then return M.redirect(list, original, self, unit, st, ...) end
 		return scoped.swap(st, "z_direction", z, M.redirect, list, original, self, unit, st, ...)

@@ -127,7 +127,7 @@ local function game(options)
 			get = function(id) return values[id] end,
 			on_change = function(id, fn) listeners[id] = fn end,
 		},
-		state = { active = false, crosshair = nil },
+		state = { active = true, crosshair = nil },
 		VIEW = { part = "view" },
 		log = function(...) LOGS[#LOGS + 1] = table.concat({ ... }, " ") end,
 	}
@@ -228,6 +228,10 @@ test("radar hides while paused, on other screens and with the map open", functio
 	w.current.screen = "hud"
 	w.map_open = true
 	eq(#w.frame(), 0, "the map")
+	w.map_open = false
+	w.env.state.active = false
+	eq(#w.frame(), 0, "the shoulder view off")
+	w.env.state.active = true
 	cleanup()
 end)
 
