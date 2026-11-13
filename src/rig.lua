@@ -47,6 +47,12 @@ function M.right(yaw)
 	return { x = math.cos(y), y = math.sin(y), z = 0 }
 end
 
+-- The camera's up for a view turned to yaw and pitch (degrees).
+function M.up(yaw, pitch)
+	local y, p = math.rad(yaw), math.rad(pitch or 0)
+	return { x = math.sin(y) * math.sin(p), y = -math.cos(y) * math.sin(p), z = math.cos(p) }
+end
+
 function M.flat_forward(yaw)
 	local y = math.rad(yaw)
 	return { x = -math.sin(y), y = math.cos(y), z = 0 }

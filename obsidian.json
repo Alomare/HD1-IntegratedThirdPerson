@@ -1,7 +1,7 @@
 {
   "obsidian": 1,
   "id": "alomare.integratedthirdperson",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "name": {
     "en": "Integrated Third Person"
   },
@@ -48,6 +48,8 @@
     "src/config.lua",
     "src/scoped.lua",
     "src/rig.lua",
+    "src/pod.lua",
+    "src/shake.lua",
     "src/frustum.lua",
     "src/camera.lua",
     "src/aim.lua",
@@ -100,6 +102,15 @@
       "group": "camera", "part": "view", "scope": "client",
       "label": { "en": "Dive camera" },
       "description": { "en": "Brings the camera in close and down during a dive, quickly but smoothly, and eases it back out once the dive ends." } },
+    { "id": "hellpod_camera", "type": "toggle", "default": true,
+      "group": "camera", "part": "view", "scope": "client",
+      "label": { "en": "Hellpod camera" },
+      "description": { "en": "When the Helldiver drops in, the camera rides the Hellpod down looking at the ground, shakes on the landing, then glides into the shoulder view." } },
+    { "id": "camera_shake", "type": "choice", "default": "medium",
+      "choices": [ { "id": "off", "label": { "en": "Off" } }, { "id": "weak", "label": { "en": "Weak" } }, { "id": "medium", "label": { "en": "Medium" } }, { "id": "strong", "label": { "en": "Strong" } } ],
+      "group": "camera", "part": "view", "scope": "client",
+      "label": { "en": "Camera shake" },
+      "description": { "en": "How much explosions, impacts and the Hellpod landing shake the shoulder camera." } },
     { "id": "vehicle_distance", "type": "number", "default": 7, "min": 3, "max": 20, "step": 0.5,
       "group": "vehicles", "part": "view", "scope": "client",
       "label": { "en": "Vehicle camera distance (m)" },

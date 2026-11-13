@@ -10,6 +10,7 @@ Third Person Camera replaces 28 game scripts, so mods that change the same parts
 - Shots, laser sights, grenades and stratagem balls go where the crosshair points, up and down included. Vehicle guns fire level, the way they point, so a slow mech turret never shoots sideways, into the ground or into the sky.
 - A mech camera sits beside the mech, farther out to the side and closer than in the middle; other vehicles keep the camera in the middle and high. In any vehicle the swap key moves the camera from left to the middle to right.
 - The camera keeps out of rocks and walls, and the aim button brings it closer, in behind the head, without zooming. A dive brings it in close and down, quickly but smoothly, and it eases back out once the dive ends. The shoulder swap glides across.
+- A Hellpod camera: when the Helldiver drops in, the camera rides the pod down looking at the ground, shakes on the landing and glides into the shoulder view. Explosions and impacts shake the shoulder camera too, as much as the Camera shake option says.
 - A longer view: the fog, the far edge of the view and the detail of distant models are pushed out, so far enemies and landmarks show.
 - A sky over the level in the color of the planet fog, in place of the smears past the level.
 - Enemy indicators, since the game was made for a view from above and enemies make little sound: a ring around the crosshair in four segments. The right, back and left segments show faintly while an enemy is within 15 m on that side, and stronger within 7.5 m. The side with the closest enemy within 7.5 m also shows a warning triangle. The ring hides while the game is paused.
@@ -31,6 +32,8 @@ Every option is in Obsidian. The camera distances and fields of view are also in
 | | Look sensitivity | 1 |
 | | Invert vertical look | Off |
 | | Dive camera | On |
+| | Hellpod camera | On |
+| | Camera shake | Medium |
 | Camera in vehicles | Vehicle camera distance (m) | 7 |
 | | Vehicle field of view (degrees) | 70 |
 | Indicators and names | Enemy indicators | On |

@@ -22,6 +22,84 @@ local function started(api)
 end
 
 return {
+	{ "the Hellpod ride falls, lands on the game's shake, holds and glides into the shoulder view", function()
+		local pod = obsidian.module("src/pod")
+		local e, env = started()
+		local masters = E.player(e, "me")
+		frame(e, env, masters, 0.05)
+		local shoulder = e.calls.set_local_position[3].z
+		E.hook("CharacterStateCutscene", "on_enter")(function() end, "me", {}, nil, { animation = "intro_land", time = 5.4 })
+		local cam = obsidian.module("src/camera")
+		assert(cam.drop, "a drop started")
+		frame(e, env, masters, 0.05)
+		local high = e.calls.set_local_position[3].z
+		assert(high > 40, "on the pod, high up: " .. high)
+		eq(env.state.dropping, true, "the crosshair stays away")
+		near(env.view.pitch, pod.PITCH, "looking down", 1e-6)
+		frame(e, env, masters, 0.5)
+		assert(e.calls.set_local_position[3].z < high, "falling")
+		-- The game's hellpod shake near the spot lands the pod.
+		_G.CameraShakeSettings = { hellpod = {} }
+		E.hook("CameraManager", "add_shake")(function() end, CameraManager, CameraShakeSettings.hellpod, { x = 1, y = 0, z = 0 })
+		eq(cam.drop.landed ~= nil, true, "landed")
+		eq(#obsidian.module("src/shake").list, 1, "the landing shake")
+		frame(e, env, masters, pod.HOLD * 0.5)
+		near(env.view.pitch, pod.PITCH, "held on the pod", 1e-6)
+		for _ = 1, 40 do frame(e, env, masters, 0.1) end
+		eq(cam.drop, nil, "the ride is over")
+		eq(env.state.dropping, false)
+		near(e.calls.set_local_position[3].z, shoulder, "back in the shoulder view", 1e-3)
+		_G.CameraShakeSettings = nil
+		E.remove()
+	end },
+
+	{ "the Hellpod ride lands by itself, and other cutscenes and players don't start one", function()
+		local pod = obsidian.module("src/pod")
+		local s = pod.new({ x = 0, y = 0, z = 0 })
+		pod.step(s, pod.LAND_FALLBACK)
+		eq(s.landed, pod.LAND_FALLBACK, "landed without a shake")
+		eq(pod.blend(s), 0)
+		pod.step(s, pod.HOLD + pod.GLIDE / 2)
+		near(pod.blend(s), 0.5, "half way, eased", 1e-6)
+		eq(pod.step(s, pod.GLIDE), false, "over")
+		local e, env = started()
+		frame(e, env, E.player(e, "me"))
+		local on_enter = E.hook("CharacterStateCutscene", "on_enter")
+		on_enter(function() end, "me", {}, nil, { animation = "extract", time = 3 })
+		on_enter(function() end, "friend", {}, nil, { animation = "intro_land", time = 5.4 })
+		eq(obsidian.module("src/camera").drop, nil)
+		OPTIONS.hellpod_camera = false
+		on_enter(function() end, "me", {}, nil, { animation = "intro_land", time = 5.4 })
+		eq(obsidian.module("src/camera").drop, nil, "option off")
+		OPTIONS.hellpod_camera = nil
+		E.remove()
+	end },
+
+	{ "the game's shakes reach the shoulder view as much as the option says", function()
+		local shake = obsidian.module("src/shake")
+		shake.clear()
+		local e, env = started()
+		local masters = E.player(e, "me")
+		frame(e, env, masters)
+		local still = e.calls.set_local_position[3]
+		local sx = still.x
+		local cm_shaker = {}
+		CameraManager.camera_shaker = cm_shaker
+		local update = E.hook("CameraManager", "update")
+		local shaker = E.hook("CameraShaker", "update")
+		local function shaken(level)
+			OPTIONS.camera_shake = level
+			E.hook("InputComponent", "update_masters")(function() end, {}, masters, 0.016)
+			update(function() shaker(function() return { x = 0.4, y = 0 } end, cm_shaker, 0.016) end, CameraManager, 0.016)
+			return e.calls.set_local_position[3].x - sx
+		end
+		near(shaken("off"), 0, "off", 1e-9)
+		near(shaken("medium"), 0.4 * obsidian.module("src/camera").GAME_SHAKE, "medium: the game's, sized for the near camera", 1e-6)
+		near(shaken("strong"), 0.4 * obsidian.module("src/camera").GAME_SHAKE * shake.LEVEL.strong, "strong", 1e-6)
+		OPTIONS.camera_shake = nil
+		E.remove()
+	end },
+
 	{ "the game's screen effects on the camera widen with the view and go back after", function()
 		local e, env = started()
 		local links = {}

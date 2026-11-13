@@ -18,6 +18,8 @@
 local rig = obsidian.module("src/rig")
 local scoped = obsidian.module("src/scoped")
 local frustum = obsidian.module("src/frustum")
+local pod = obsidian.module("src/pod")
+local shake = obsidian.module("src/shake")
 
 local M = {}
 
@@ -30,6 +32,18 @@ M.view = { yaw = nil, pitch = 0, side = 1 }
 -- picked with the swap key is kept for each vehicle kind until the game closes.
 M.ride = { target = nil, kind = nil, side = 0 }
 M.vehicle_sides = {}
+-- The Hellpod ride under way (src/pod.lua), with the avatar it is for.
+M.drop = nil
+-- How much of the game's own shake reaches the shoulder view: the game sizes them for a camera 20 m
+-- and more away.
+M.GAME_SHAKE = 0.5
+-- The shake of the pod landing: metres, a second, seconds.
+M.LAND_SHAKE = { 0.35, 9, 0.8 }
+
+-- The pod lands now: the landing shake, once.
+function M.pod_landed()
+	if M.drop and pod.land(M.drop) then shake.add(M.LAND_SHAKE[1], M.LAND_SHAKE[2], M.LAND_SHAKE[3]) end
+end
 M.input = nil         -- the local player's input this frame (from InputComponent.update_masters)
 M.frame = 0
 M.warned = {}
@@ -217,6 +231,8 @@ function M.release(env, cm)
 	state.active, state.vehicle, state.aiming, state.crosshair = false, false, false, nil
 	env.view = nil
 	smooth.pivot, smooth.length, smooth.aim, smooth.target, smooth.side, smooth.dive = nil, nil, 0, nil, nil, 0
+	state.dropping = false
+	shake.clear()
 	M.view.yaw = nil
 	M.ride.target, M.ride.kind = nil, nil
 	if type(cm) == "table" and cm.viewport then
@@ -338,9 +354,35 @@ function M.drive(env, cm, dt)
 	smooth.length = rig.follow_length(smooth.length, rig.pull_in(full, hit), dt)
 	local position = rig.add(smooth.pivot, dir, smooth.length)
 
+	-- The Hellpod ride: the pod pose, then the glide into the shoulder pose.
+	local pitch = view.pitch
+	local drop = M.drop
+	if drop then
+		local was = drop.landed
+		local going = drop.avatar == avatar and not kind and pod.step(drop, dt)
+		if going and not was and drop.landed then shake.add(M.LAND_SHAKE[1], M.LAND_SHAKE[2], M.LAND_SHAKE[3]) end
+		if not going then M.drop, drop = nil, nil end
+	end
+	state.dropping = false
+	if drop then
+		local w = pod.blend(drop)
+		local pod_at, pod_pitch = pod.pose(drop, view.yaw)
+		position, pitch = pod.mix(pod_at, pod_pitch, position, view.pitch, w)
+		state.dropping = w < 1
+	end
+
+	-- Shake: the game's, and the mod's own.
+	local factor = shake.factor(config.get("camera_shake"))
+	shake.game.x, shake.game.y = (shake.game.x or 0) * M.GAME_SHAKE, (shake.game.y or 0) * M.GAME_SHAKE
+	local sx, sy = shake.offset(dt, factor)
+	if sx ~= 0 or sy ~= 0 then
+		local r, u = rig.right(view.yaw), rig.up(view.yaw, pitch)
+		position = { x = position.x + r.x * sx + u.x * sy, y = position.y + r.y * sx + u.y * sy, z = position.z + u.z * sy }
+	end
+
 	-- Apply.
 	local cam, cam_unit = cm.viewport:get_camera(), cm.viewport.camera_unit
-	local rotation = Q.multiply(Q(V3(0, 0, 1), math.rad(view.yaw)), Q(V3(1, 0, 0), math.rad(view.pitch)))
+	local rotation = Q.multiply(Q(V3(0, 0, 1), math.rad(view.yaw)), Q(V3(1, 0, 0), math.rad(pitch)))
 	C.set_local_position(cam, cam_unit, V3(position.x, position.y, position.z))
 	C.set_local_rotation(cam, cam_unit, rotation)
 	C.set_vertical_fov(cam, math.rad(fov))
@@ -351,7 +393,7 @@ function M.drive(env, cm, dt)
 		pcall(C.set_near_range, cam, 0.05)
 	end
 	if cm.viewport:is_active() and proxy:is_active() then g("World").update_unit(world, cam_unit) end
-	local forward = rig.forward(view.yaw, view.pitch)
+	local forward = rig.forward(view.yaw, pitch)
 	-- Grass and scattered detail gather around what the view looks at.
 	local scatter = g("ScatterSystem")
 	if scatter and cm.scatter_system and cm.observer_id then
@@ -363,7 +405,7 @@ function M.drive(env, cm, dt)
 		pcall(tw.set_listener, cm.timpani_world, 0, M4.from_quaternion_position(rotation, V3(position.x, position.y, position.z)))
 	end
 
-	env.view = { position = position, forward = forward, yaw = view.yaw, pitch = view.pitch, fov = fov, pivot = smooth.pivot,
+	env.view = { position = position, forward = forward, yaw = view.yaw, pitch = pitch, fov = fov, pivot = smooth.pivot,
 		avatar = avatar, target = target, vehicle = kind, world = world, camera = cam }
 	state.active = true
 	state.vehicle = kind ~= nil
@@ -500,7 +542,50 @@ function M.start(env)
 		return original(self, ...)
 	end, env.VIEW)
 
+	-- A Helldiver dropping in: the game's drop cutscene of this player's avatar starts the Hellpod ride.
+	obsidian.hook("CharacterStateCutscene", "on_enter", function(original, unit, context, previous, params, ...)
+		local r = scoped.pack(original(unit, context, previous, params, ...))
+		pcall(function()
+			if type(params) ~= "table" or params.animation ~= "intro_land" then return end
+			if env.config.get("hellpod_camera") == false then return end
+			local api = env.api
+			local mine = api and api.game and api.game.my_unit and api.game.my_unit()
+			if unit ~= mine and not (M.input and M.input.unit == unit) then return end
+			local p = g("Unit").world_position(unit, 0)
+			M.drop = pod.new({ x = p.x, y = p.y, z = p.z })
+			M.drop.avatar = unit
+		end)
+		return unpack(r, 1, r.n)
+	end, env.VIEW)
+
+	-- The pod's landing is the game's hellpod shake near the Helldiver.
+	obsidian.hook("CameraManager", "add_shake", function(original, self, template, epicenter, ...)
+		pcall(function()
+			local drop = M.drop
+			local settings = g("CameraShakeSettings")
+			if not (drop and not drop.landed and settings and template == settings.hellpod) then return end
+			if epicenter then
+				local e = g("Vector3Aux").unbox(epicenter)
+				local a = drop.anchor
+				if (e.x - a.x) ^ 2 + (e.y - a.y) ^ 2 > pod.NEAR * pod.NEAR then return end
+			end
+			M.pod_landed()
+		end)
+		return original(self, template, epicenter, ...)
+	end, env.VIEW)
+
+	-- The offset of the game's shakes this frame (zero when it has none), for the shoulder view.
+	obsidian.hook("CameraShaker", "update", function(original, self, ...)
+		local r = original(self, ...)
+		local cm = g("CameraManager")
+		if type(cm) == "table" and self == cm.camera_shaker and type(r) == "table" then
+			shake.game.x, shake.game.y = tonumber(r.x) or 0, tonumber(r.y) or 0
+		end
+		return r
+	end, env.VIEW)
+
 	obsidian.hook("CameraManager", "update", function(original, self, dt, ...)
+		shake.game.x, shake.game.y = 0, 0
 		-- The shoulder camera of the last frame goes on unless something stops it in this one.
 		local asked, why = pcall(M.blocked, env, self)
 		local still = state.active and asked and why == nil

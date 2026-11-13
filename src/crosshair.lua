@@ -11,7 +11,7 @@ M.SHADOW = { 0, 0, 0, 140 }
 -- Whether the crosshair shows now. env.api may be nil.
 function M.visible(env)
 	local state = env.state
-	if not state.active or not state.crosshair or state.claimed_by then return false end
+	if not state.active or not state.crosshair or state.claimed_by or state.dropping then return false end
 	local api = env.api
 	if api then
 		if api.capture and api.capture.busy then
