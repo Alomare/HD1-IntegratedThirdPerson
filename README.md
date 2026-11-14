@@ -2,90 +2,21 @@
 
 An over-the-shoulder camera for HELLDIVERS (2015), for the [Obsidian](https://github.com/Alomare/ObsidianLauncher) mod manager. Based on [Third Person Camera (HD2 Style)](https://github.com/yukiorsrs/third-person-camera-helldivers) by **yukiorsrs**, rebuilt with the permission of the author so that other mods keep working beside it.
 
-Third Person Camera replaces 28 game scripts, so mods that change the same parts of the game stop working with it. Integrated Third Person replaces no script: every change is a hook through Obsidian, and the hooks of other mods on the same functions still run.
+The camera follows the Helldiver on foot, in vehicles and on the ship. Shots, grenades and stratagems go where the crosshair points. The view reaches farther, the sky over the level is filled in, a ring around the crosshair warns of enemies close by, and a bar shows where hits come from.
 
-## What it does
+Third Person Camera replaces 28 game scripts, so mods that change the same parts of the game stop working with it. Integrated Third Person replaces no script: every change is a hook through Obsidian.
 
-- A shoulder camera on foot, in vehicles (mech, APC, bike, turrets and seats) and on the ship, turned with the mouse or the right stick. W moves where the camera looks.
-- Shots, laser sights, grenades and stratagem balls go where the crosshair points, up and down included. Vehicle guns fire level, the way they point, so a slow mech turret never shoots sideways, into the ground or into the sky.
-- A mech camera sits beside the mech, farther out to the side and closer than in the middle; other vehicles keep the camera in the middle and high. In any vehicle the swap key moves the camera from left to the middle to right.
-- The camera keeps out of rocks and walls, and the aim button brings it closer, in behind the head, without zooming. A dive brings it in close and down, quickly but smoothly, and it eases back out once the dive ends. The shoulder swap glides across.
-- A Hellpod camera: when the Helldiver drops in, the camera rides the pod down looking at the ground, shakes on the landing and glides into the shoulder view. Explosions and impacts shake the shoulder camera too, as much as the Camera shake option says.
-- A longer view: the fog, the far edge of the view and the detail of distant models are pushed out, so far enemies and landmarks show.
-- A sky over the level in the color of the planet fog, in place of the smears past the level.
-- Enemy indicators, since the game was made for a view from above and enemies make little sound: a ring around the crosshair in four segments. The right, back and left segments show faintly while an enemy is within 15 m on that side, and stronger within 7.5 m. The side with the closest enemy within 7.5 m also shows a warning triangle. The ring hides while the game is paused.
-- Hit direction: a bar near the crosshair points toward where a hit came from and fades within 2 seconds. Red when health is lost, yellow when the personal shield takes the hit, white when the vehicle does. A bar for an enemy follows the enemy.
-- Louder footsteps for Helldivers and enemies: each step plays up to four times, so steps out of view are easier to hear. The sound files stay as they are.
-- Player name cards above heads instead of at the feet.
-- The rules of the game keep the top-down screen: enemies spawn and patrols raise the alarm as in the game.
+## How to use
 
-## Options
-
-Every option is in Obsidian. The camera distances and fields of view are also in game, under Mods in the pause menu, and apply at once.
-
-| Group | Option | Default |
-|---|---|---|
-| Camera on foot | On-foot camera distance (m) | 5 |
-| | Ship camera distance (m) | 2 |
-| | On-foot field of view (degrees) | 70 |
-| | Shoulder | Right |
-| | Look sensitivity | 1 |
-| | Invert vertical look | Off |
-| | Dive camera | On |
-| | Hellpod camera | On |
-| | Camera shake | Medium |
-| Camera in vehicles | Vehicle camera distance (m) | 7 |
-| | Vehicle field of view (degrees) | 70 |
-| Indicators and names | Enemy indicators | On |
-| | Indicator range (m) | 15 |
-| | Hit direction | On |
-| | Names above heads | On |
-| View distance and sky | Long view distance | On |
-| | Sky | On (needs a deploy) |
-| Sound | Footsteps | Loudest |
-| Lobby-wide changes | Max weapon range | On |
-| | Far enemy detection | On |
-| | Free movement | On |
-
-Keys: **F8** switches between third person and the top-down camera, **H** swaps the shoulder (in a vehicle: left, middle, right). Both can be changed in the Keys tab in Obsidian.
+**F8** switches between third person and the top-down camera, and **H** swaps the shoulder. Both keys can be changed in Obsidian.
 
 ## Playing with others
 
-Players on one computer share one screen, which only the top-down camera can show. When a second player joins on the same computer, third person turns off with a message, and it comes back once one player is left.
+The camera and everything on screen work in any lobby. Three options change the game for the whole lobby: Max weapon range, Far enemy detection and Free movement. They run only when every player runs Obsidian with the same mods, and switch off when anyone else joins. With all three off, the mod counts as a client mod.
 
-The mod comes in parts. The camera, aim, view, sky, enemy indicators, name cards and footsteps only change what this player sees and hears, and work in any lobby. Three parts change the game the whole lobby shares:
+## Known issues
 
-- **Max weapon range**: every gun, laser and launcher reaches 100 m, the length of the bullet ray in the game. Flamethrowers, arc weapons and melee keep their reach.
-- **Far enemy detection**: enemies keep chasing a player up to 150 m away instead of 80 m, and patrols spot players up to 80 m away and close in. The alarm still needs a player as close as in the game.
-- **Free movement**: in third person, the Helldiver is no longer held on the shared top-down screen and can move away from the squad.
+- Players on one computer share a screen, so third person turns off while a second local player is in, and comes back after.
+- The mod stays off while Third Person Camera is installed.
 
-These run only in a lobby where every player runs Obsidian and allows the same mods. When a player without them joins, they switch off at once and the camera keeps working. With all three options off, the mod counts as a client mod: Galactic War results are sent as usual.
-
-Parts need Obsidian 2.0.0 or later. An older Obsidian treats the whole mod as a session mod, so the camera also stops in lobbies with players who don't run it.
-
-## Working with other mods
-
-- **Custom Crosshair** draws the crosshair in place of the plain one built in here.
-- **Enhanced Visuals** loads after this mod and brings the same sky fix.
-- **Photo Mode** takes the camera while open; third person steps aside until it closes.
-- **Better HUD** hides enemy bars out of view while third person is on, instead of pinning them to the edge of the screen, sets them a little lower, and moves the ammo circle to a fixed spot near the crosshair, on the side away from the Helldiver, half again as big.
-- **Third Person Camera**: the two mods can't run together. With Third Person Camera installed, this mod stays off and says so.
-
-Mods built on Obsidian API keep working: other mods can ask `obsidian.import("alomare.integratedthirdperson")` for `active()`, `crosshair()` and `shoulder()` (1 for the right shoulder, -1 for the left, nil in the top-down view).
-
-## Building the skies
-
-`python tools/build_sky.py` writes the sky textures, materials and units in `res/` from the game install. `res/render_config.bin` is the render config of Photo Mode, byte for byte, so the two mods never conflict.
-
-## Tests
-
-`luajit tests/run.lua` runs the offline tests.
-
-## Credits
-
-- **yukiorsrs**, author of Third Person Camera (HD2 Style), which this mod is based on and studied from, with permission.
-- Arrowhead Game Studios for HELLDIVERS.
-
-## License
-
-MIT. See [LICENSE](LICENSE).
+Mod authors can read the camera state through `obsidian.import("alomare.integratedthirdperson")`: `active()`, `crosshair()` and `shoulder()`.

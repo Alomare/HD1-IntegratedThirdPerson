@@ -6,7 +6,7 @@
     "en": "Integrated Third Person"
   },
   "description": {
-    "en": "An over-the-shoulder camera for on foot and in vehicles, with shots, grenades and stratagems going where the crosshair points, a longer view distance, a sky over the level and enemy indicators around the crosshair. Built on Obsidian hooks, so other mods keep working beside it. Based on Third Person Camera by yukiorsrs."
+    "en": "An over-the-shoulder camera that keeps other mods working."
   },
   "authors": [
     "Alomare",
